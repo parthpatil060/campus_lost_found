@@ -1,0 +1,2 @@
+C:/Users/Admin/StudioProjects/campus_lost_found/android/app/.cxx/debug/4663561c/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/Admin/StudioProjects/campus_lost_found/android/app/.cxx/debug/4663561c/x86_64/CMakeFiles/rebuild_cache.dir
