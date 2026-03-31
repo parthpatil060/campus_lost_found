@@ -51,3 +51,4 @@ build/
 ios/Pods/
 android/.gradle/
 android/app/build/
+lib/firebase_options.dart
