@@ -4,7 +4,6 @@ import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../models/user_model.dart';
 import '../../utils/app_theme.dart';
-import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -33,49 +32,189 @@ class _AdminDashboardState extends State<AdminDashboard>
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final admin = auth.currentUser;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
+      backgroundColor: const Color(0xFFF2F4F7),
+      body: SafeArea(
+        child: Column(
           children: [
-            const Text('👑', style: TextStyle(fontSize: 18)),
-            const SizedBox(width: 6),
-            const Text('Admin Dashboard'),
+            // ── Header ────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Center(
+                      child: Text(
+                        (admin?.name ?? 'A').substring(0, 1).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Campus L&F',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            color: Color(0xFF1A1D23),
+                          ),
+                        ),
+                        Text(
+                          'Admin Panel',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF8A94A6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.logout,
+                          color: Colors.red, size: 20),
+                      onPressed: () async {
+                        await context.read<AuthProvider>().signOut();
+                        if (mounted) {
+                          Navigator.pushReplacementNamed(context, '/login');
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Greeting ──────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Hello, ${admin?.name?.split(' ').first ?? 'Admin'}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF8A94A6),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Admin Dashboard',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1A1D23),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Super Admin',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFE65100),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            // ── Tab Bar ───────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    color: AppTheme.primary,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: const Color(0xFF8A94A6),
+                  labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 12),
+                  padding: const EdgeInsets.all(4),
+                  tabs: const [
+                    Tab(text: 'Analytics'),
+                    Tab(text: 'Verifiers'),
+                    Tab(text: 'Reports'),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // ── Tab Content ───────────────────────────────────────────
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _AnalyticsTab(fs: _fs),
+                  _VerifiersTab(fs: _fs),
+                  _ReportsTab(fs: _fs),
+                ],
+              ),
+            ),
           ],
         ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await context.read<AuthProvider>().signOut();
-              if (mounted)
-                Navigator.pushReplacementNamed(context, '/login');
-            },
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppTheme.primary,
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: AppTheme.textSecondary,
-          labelStyle:
-          const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-          tabs: const [
-            Tab(text: 'Analytics'),
-            Tab(text: 'Verifiers'),
-            Tab(text: 'Reports'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _AnalyticsTab(fs: _fs),
-          _VerifiersTab(fs: _fs),
-          _ReportsTab(fs: _fs),
-        ],
       ),
     );
   }
@@ -97,60 +236,68 @@ class _AnalyticsTab extends StatelessWidget {
         }
         final data = snap.data ?? {};
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Overview',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary)),
-              const SizedBox(height: 14),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.4,
+              const Text(
+                'Overview',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1D23),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Stat grid
+              Row(
                 children: [
                   _StatCard(
-                    emoji: '😢',
+                    emoji: '⚠️',
+                    iconBg: const Color(0xFFFFEBEE),
                     label: 'Total Lost',
                     value: '${data['totalLost'] ?? 0}',
-                    gradient: const LinearGradient(
-                        colors: [Color(0xFFFF6B6B), Color(0xFFFF8E8E)]),
                   ),
-                  _StatCard(
-                    emoji: '🎉',
-                    label: 'Total Found',
-                    value: '${data['totalFound'] ?? 0}',
-                    gradient: const LinearGradient(
-                        colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)]),
-                  ),
+                  const SizedBox(width: 10),
                   _StatCard(
                     emoji: '✅',
-                    label: 'Matched',
-                    value: '${data['totalMatched'] ?? 0}',
-                    gradient: AppTheme.primaryGradient,
-                  ),
-                  _StatCard(
-                    emoji: '👥',
-                    label: 'Total Users',
-                    value: '${data['totalUsers'] ?? 0}',
-                    gradient: const LinearGradient(
-                        colors: [Color(0xFF9C27B0), Color(0xFFAB47BC)]),
+                    iconBg: const Color(0xFFE8F5E9),
+                    label: 'Total Found',
+                    value: '${data['totalFound'] ?? 0}',
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              const Text('Pending Actions',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary)),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _StatCard(
+                    emoji: '🔗',
+                    iconBg: const Color(0xFFEDE7F6),
+                    label: 'Matched',
+                    value: '${data['totalMatched'] ?? 0}',
+                  ),
+                  const SizedBox(width: 10),
+                  _StatCard(
+                    emoji: '👥',
+                    iconBg: const Color(0xFFE3F2FD),
+                    label: 'Total Users',
+                    value: '${data['totalUsers'] ?? 0}',
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 22),
+              const Text(
+                'Pending Actions',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1D23),
+                ),
+              ),
+              const SizedBox(height: 10),
+
               _PendingCard(
                 label: 'Pending Lost Reports',
                 count: data['pendingLost'] ?? 0,
@@ -174,49 +321,62 @@ class _AnalyticsTab extends StatelessWidget {
 
 class _StatCard extends StatelessWidget {
   final String emoji;
+  final Color iconBg;
   final String label;
   final String value;
-  final LinearGradient gradient;
 
-  const _StatCard(
-      {required this.emoji,
-        required this.label,
-        required this.value,
-        required this.gradient});
+  const _StatCard({
+    required this.emoji,
+    required this.iconBg,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        boxShadow: [
-          BoxShadow(
-              color: gradient.colors.first.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4))
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 26)),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white)),
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withOpacity(0.85))),
-              ],
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                  child: Text(emoji, style: const TextStyle(fontSize: 16))),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              value.padLeft(2, '0'),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1A1D23),
+              ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF8A94A6),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -231,11 +391,12 @@ class _PendingCard extends StatelessWidget {
   final Color color;
   final String emoji;
 
-  const _PendingCard(
-      {required this.label,
-        required this.count,
-        required this.color,
-        required this.emoji});
+  const _PendingCard({
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.emoji,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -244,30 +405,40 @@ class _PendingCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: AppTheme.cardShadow,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
-                child: Text(emoji, style: const TextStyle(fontSize: 20))),
+                child: Text(emoji, style: const TextStyle(fontSize: 18))),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A1D23),
+              ),
+            ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
@@ -275,7 +446,9 @@ class _PendingCard extends StatelessWidget {
             child: Text(
               '$count',
               style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w700, color: color),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: color),
             ),
           ),
         ],
@@ -311,8 +484,10 @@ class _VerifiersTab extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 AppTextField(
-                    hint: 'Full Name', controller: nameCtrl,
-                    validator: (v) => v?.isEmpty == true ? 'Required' : null),
+                    hint: 'Full Name',
+                    controller: nameCtrl,
+                    validator: (v) =>
+                    v?.isEmpty == true ? 'Required' : null),
                 const SizedBox(height: 12),
                 AppTextField(
                     hint: 'Email (@gst.sies.edu.in)',
@@ -330,8 +505,9 @@ class _VerifiersTab extends StatelessWidget {
                     hint: 'Password',
                     controller: passCtrl,
                     isPassword: true,
-                    validator: (v) =>
-                    v != null && v.length < 6 ? 'Min 6 chars' : null),
+                    validator: (v) => v != null && v.length < 6
+                        ? 'Min 6 chars'
+                        : null),
               ],
             ),
           ),
@@ -347,8 +523,6 @@ class _VerifiersTab extends StatelessWidget {
                 if (!formKey.currentState!.validate()) return;
                 setDlgState(() => isLoading = true);
                 try {
-                  // This requires Admin SDK in production
-                  // Using secondary auth for demo
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -378,56 +552,6 @@ class _VerifiersTab extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateVerifierDialog(context),
-        backgroundColor: AppTheme.primary,
-        icon: const Icon(Icons.person_add_outlined),
-        label: const Text('Add Verifier'),
-      ),
-      body: StreamBuilder<List<UserModel>>(
-        stream: fs.getVerifiers(),
-        builder: (_, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final verifiers = snap.data ?? [];
-          if (verifiers.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('🛡️', style: TextStyle(fontSize: 48)),
-                  SizedBox(height: 12),
-                  Text('No verifiers yet',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary)),
-                  SizedBox(height: 8),
-                  Text('Tap + to create a verifier account.',
-                      style: TextStyle(
-                          fontSize: 13, color: AppTheme.textSecondary)),
-                ],
-              ),
-            );
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-            itemCount: verifiers.length,
-            itemBuilder: (_, i) => _VerifierCard(
-              verifier: verifiers[i],
-              onDelete: () => _confirmDelete(context, verifiers[i]),
-            ),
-          );
-        },
       ),
     );
   }
@@ -464,13 +588,65 @@ class _VerifiersTab extends StatelessWidget {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F4F7),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showCreateVerifierDialog(context),
+        backgroundColor: AppTheme.primary,
+        icon: const Icon(Icons.person_add_outlined),
+        label: const Text('Add Verifier',
+            style: TextStyle(fontWeight: FontWeight.w600)),
+      ),
+      body: StreamBuilder<List<UserModel>>(
+        stream: fs.getVerifiers(),
+        builder: (_, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final verifiers = snap.data ?? [];
+          if (verifiers.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('🛡️', style: TextStyle(fontSize: 48)),
+                  SizedBox(height: 12),
+                  Text('No verifiers yet',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1A1D23))),
+                  SizedBox(height: 6),
+                  Text('Tap + to create a verifier account.',
+                      style: TextStyle(
+                          fontSize: 13, color: Color(0xFF8A94A6))),
+                ],
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+            itemCount: verifiers.length,
+            itemBuilder: (_, i) => _VerifierCard(
+              verifier: verifiers[i],
+              onDelete: () => _confirmDelete(context, verifiers[i]),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _VerifierCard extends StatelessWidget {
   final UserModel verifier;
   final VoidCallback onDelete;
 
-  const _VerifierCard({required this.verifier, required this.onDelete});
+  const _VerifierCard(
+      {required this.verifier, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -479,16 +655,22 @@ class _VerifierCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        boxShadow: AppTheme.cardShadow,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
+              color: AppTheme.primary,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Center(
@@ -498,7 +680,7 @@ class _VerifierCard extends StatelessWidget {
                     : 'V',
                 style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700),
               ),
             ),
@@ -508,30 +690,37 @@ class _VerifierCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(verifier.name,
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary)),
-                Text(verifier.email,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppTheme.textSecondary)),
+                Text(
+                  verifier.name,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1D23)),
+                ),
+                Text(
+                  verifier.email,
+                  style: const TextStyle(
+                      fontSize: 11, color: Color(0xFF8A94A6)),
+                ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: AppTheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text('Verifier',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primary)),
+            child: const Text(
+              'Verifier',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primary),
+            ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.delete_outline,
                 color: AppTheme.error, size: 20),
@@ -573,23 +762,58 @@ class _ReportsTabState extends State<_ReportsTab>
   Widget build(BuildContext context) {
     return Column(
       children: [
-        TabBar(
-          controller: _tc,
-          indicatorColor: AppTheme.primary,
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: AppTheme.textSecondary,
-          tabs: const [Tab(text: 'Lost'), Tab(text: 'Found')],
+        // Nested pill tab bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TabBar(
+              controller: _tc,
+              indicator: BoxDecoration(
+                color: AppTheme.primary,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              labelColor: Colors.white,
+              unselectedLabelColor: const Color(0xFF8A94A6),
+              labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w700, fontSize: 12),
+              padding: const EdgeInsets.all(4),
+              tabs: const [Tab(text: 'Lost'), Tab(text: 'Found')],
+            ),
+          ),
         ),
+
         Expanded(
           child: TabBarView(
             controller: _tc,
             children: [
+              // Lost reports
               StreamBuilder(
                 stream: widget.fs.getAllLostItems(),
                 builder: (_, snap) {
-                  if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                  if (!snap.hasData) {
+                    return const Center(
+                        child: CircularProgressIndicator());
+                  }
+                  if (snap.data!.isEmpty) {
+                    return const _EmptyState(
+                        emoji: '😢', label: 'No lost reports yet.');
+                  }
                   return ListView.builder(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                     itemCount: snap.data!.length,
                     itemBuilder: (_, i) {
                       final item = snap.data![i];
@@ -605,12 +829,21 @@ class _ReportsTabState extends State<_ReportsTab>
                   );
                 },
               ),
+
+              // Found reports
               StreamBuilder(
                 stream: widget.fs.getAllFoundItems(),
                 builder: (_, snap) {
-                  if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                  if (!snap.hasData) {
+                    return const Center(
+                        child: CircularProgressIndicator());
+                  }
+                  if (snap.data!.isEmpty) {
+                    return const _EmptyState(
+                        emoji: '🎉', label: 'No found reports yet.');
+                  }
                   return ListView.builder(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                     itemCount: snap.data!.length,
                     itemBuilder: (_, i) {
                       final item = snap.data![i];
@@ -633,6 +866,31 @@ class _ReportsTabState extends State<_ReportsTab>
   }
 }
 
+// ─── SHARED WIDGETS ───────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  final String emoji;
+  final String label;
+
+  const _EmptyState({required this.emoji, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 48)),
+          const SizedBox(height: 12),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 14, color: Color(0xFF8A94A6))),
+        ],
+      ),
+    );
+  }
+}
+
 class _SimpleReportTile extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -640,12 +898,13 @@ class _SimpleReportTile extends StatelessWidget {
   final DateTime date;
   final bool isLost;
 
-  const _SimpleReportTile(
-      {required this.title,
-        required this.subtitle,
-        required this.status,
-        required this.date,
-        required this.isLost});
+  const _SimpleReportTile({
+    required this.title,
+    required this.subtitle,
+    required this.status,
+    required this.date,
+    required this.isLost,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -655,7 +914,13 @@ class _SimpleReportTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: AppTheme.cardShadow,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -677,16 +942,22 @@ class _SimpleReportTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppTheme.textSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  title,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1A1D23)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                      fontSize: 11, color: Color(0xFF8A94A6)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -699,7 +970,7 @@ class _SimpleReportTile extends StatelessWidget {
               Text(
                 '${date.day}/${date.month}',
                 style: const TextStyle(
-                    fontSize: 10, color: AppTheme.textSecondary),
+                    fontSize: 10, color: Color(0xFF8A94A6)),
               ),
             ],
           ),
