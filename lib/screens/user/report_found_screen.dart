@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
@@ -26,11 +27,15 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
   final _firestoreService = FirestoreService();
   final _storageService = StorageService();
   final _picker = ImagePicker();
+  final SpeechToText _speech = SpeechToText();
 
   File? _selectedImage;
   bool _isSubmitting = false;
+  bool _speechReady = false;
+  bool _isListening = false;
   String? _selectedCategory;
   String? _storageOption;
+  String? _activeVoiceField;
 
   final List<String> _categories = const [
     'Electronics',
@@ -54,10 +59,111 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  @override
   void dispose() {
+    _speech.stop();
     _descriptionCtrl.dispose();
     _locationCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _initSpeech() async {
+    _speechReady = await _speech.initialize(
+      onStatus: (status) {
+        if (!mounted) return;
+        if (status == 'done' || status == 'notListening') {
+          setState(() {
+            _isListening = false;
+            _activeVoiceField = null;
+          });
+        }
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _isListening = false;
+          _activeVoiceField = null;
+        });
+      },
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleVoiceInput(
+    TextEditingController controller,
+    String fieldName,
+  ) async {
+    if (!_speechReady) {
+      await _initSpeech();
+    }
+    if (!_speechReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Voice input is not available on this device right now'),
+        backgroundColor: AppTheme.error,
+      ));
+      return;
+    }
+
+    if (_isListening && _activeVoiceField == fieldName) {
+      await _speech.stop();
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+          _activeVoiceField = null;
+        });
+      }
+      return;
+    }
+
+    if (_isListening) {
+      await _speech.stop();
+    }
+
+    if (mounted) {
+      setState(() {
+        _isListening = true;
+        _activeVoiceField = fieldName;
+      });
+    }
+
+    await _speech.listen(
+      onResult: (result) {
+        final text = result.recognizedWords.trim();
+        if (text.isEmpty) return;
+        controller.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+        if (result.finalResult && mounted) {
+          setState(() {
+            _isListening = false;
+            _activeVoiceField = null;
+          });
+        }
+      },
+      partialResults: true,
+      cancelOnError: true,
+      listenFor: const Duration(seconds: 45),
+      pauseFor: const Duration(seconds: 5),
+    );
+  }
+
+  Widget _voiceSuffix(TextEditingController controller, String fieldName) {
+    final isActive = _isListening && _activeVoiceField == fieldName;
+    return IconButton(
+      tooltip: isActive ? 'Stop voice input' : 'Start voice input',
+      icon: Icon(
+        isActive ? Icons.mic_rounded : Icons.mic_none_rounded,
+        color: isActive ? AppTheme.accent : AppTheme.textSecondary,
+      ),
+      onPressed: () => _toggleVoiceInput(controller, fieldName),
+    );
   }
 
   Future<void> _pickImage() async {
@@ -213,6 +319,7 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
                               hint: 'Describe the item',
                               controller: _descriptionCtrl,
                               prefixIcon: Icons.description_outlined,
+                              suffix: _voiceSuffix(_descriptionCtrl, 'description'),
                               maxLines: 3,
                               validator: (value) => value == null || value.isEmpty
                                   ? 'Description is required'
@@ -223,6 +330,7 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
                               hint: 'Where did you find it?',
                               controller: _locationCtrl,
                               prefixIcon: Icons.location_on_outlined,
+                              suffix: _voiceSuffix(_locationCtrl, 'location'),
                               validator: (value) =>
                                   value == null || value.isEmpty ? 'Location is required' : null,
                             ),
