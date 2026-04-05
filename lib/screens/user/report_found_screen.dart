@@ -1,13 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
+import 'report_form_widgets.dart';
 
 class ReportFoundScreen extends StatefulWidget {
   const ReportFoundScreen({super.key});
@@ -20,12 +23,16 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
+  final _firestoreService = FirestoreService();
+  final _storageService = StorageService();
+  final _picker = ImagePicker();
+
   File? _selectedImage;
   bool _isSubmitting = false;
   String? _selectedCategory;
   String? _storageOption;
 
-  final List<String> _categories = [
+  final List<String> _categories = const [
     'Electronics',
     'Bag / Backpack',
     'ID Card / Documents',
@@ -37,7 +44,7 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
     'Other',
   ];
 
-  final List<String> _storageOptions = [
+  final List<String> _storageOptions = const [
     'Submitted to Security Office',
     'Submitted to Reception',
     'Keeping with me',
@@ -45,10 +52,6 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
     'Submitted to Library',
     'Other',
   ];
-
-  final FirestoreService _firestoreService = FirestoreService();
-  final StorageService _storageService = StorageService();
-  final ImagePicker _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -61,36 +64,44 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Upload Photo',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Camera'),
-              onTap: () async {
-                Navigator.pop(context);
-                final img = await _picker.pickImage(
-                    source: ImageSource.camera, imageQuality: 70);
-                if (img != null) setState(() => _selectedImage = File(img.path));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Gallery'),
-              onTap: () async {
-                Navigator.pop(context);
-                final img = await _picker.pickImage(
-                    source: ImageSource.gallery, imageQuality: 70);
-                if (img != null) setState(() => _selectedImage = File(img.path));
-              },
-            ),
-          ],
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Upload photo',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 14),
+              ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                tileColor: AppTheme.canvas,
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Camera'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+                  if (image != null) setState(() => _selectedImage = File(image.path));
+                },
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                tileColor: AppTheme.canvas,
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Gallery'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+                  if (image != null) setState(() => _selectedImage = File(image.path));
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -102,26 +113,21 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Photo is required for found items'),
         backgroundColor: AppTheme.error,
-        behavior: SnackBarBehavior.floating,
       ));
       return;
     }
     if (_storageOption == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please select where you stored the item'),
+        content: Text('Please select where the item is stored'),
         backgroundColor: AppTheme.error,
-        behavior: SnackBarBehavior.floating,
       ));
       return;
     }
 
     setState(() => _isSubmitting = true);
-
     try {
       final user = context.read<AuthProvider>().currentUser!;
-      final photoURL =
-      await _storageService.uploadFoundItemImage(_selectedImage!);
-
+      final photoURL = await _storageService.uploadFoundItemImage(_selectedImage!);
       if (photoURL == null) throw Exception('Image upload failed');
 
       await _firestoreService.reportFoundItem(
@@ -136,17 +142,15 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Found item reported! Verifiers will be notified.'),
+        content: Text('Found item reported successfully'),
         backgroundColor: AppTheme.success,
-        behavior: SnackBarBehavior.floating,
       ));
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: ${e.toString()}'),
+        content: Text('Error: $e'),
         backgroundColor: AppTheme.error,
-        behavior: SnackBarBehavior.floating,
       ));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -156,195 +160,120 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Report Found Item'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.check_circle_outline, color: Color(0xFF4CAF50), size: 14),
-                SizedBox(width: 4),
-                Text('FOUND',
-                    style: TextStyle(
-                        color: Color(0xFF4CAF50),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700)),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(gradient: AppTheme.softGradient),
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: ReportFormHeader(
+                      title: 'Report found item',
+                      subtitle: 'Give verifiers a clear record of what was found and where it is kept.',
+                      badgeLabel: 'Found report',
+                      badgeColor: AppTheme.success,
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.all(20),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      ReportUploadCard(
+                        title: 'Required photo',
+                        subtitle: 'A clear image helps verifiers match the right owner.',
+                        icon: Icons.photo_camera_back_outlined,
+                        imageFile: _selectedImage,
+                        accent: AppTheme.success,
+                        onTap: _pickImage,
+                      ),
+                      const SizedBox(height: 18),
+                      ReportSectionCard(
+                        title: 'Item details',
+                        child: Column(
+                          children: [
+                            DropdownButtonFormField<String>(
+                              value: _selectedCategory,
+                              decoration: const InputDecoration(
+                                hintText: 'Category',
+                                prefixIcon: Icon(Icons.category_outlined),
+                              ),
+                              items: _categories
+                                  .map((category) =>
+                                      DropdownMenuItem(value: category, child: Text(category)))
+                                  .toList(),
+                              onChanged: (value) => setState(() => _selectedCategory = value),
+                            ),
+                            const SizedBox(height: 14),
+                            AppTextField(
+                              hint: 'Describe the item',
+                              controller: _descriptionCtrl,
+                              prefixIcon: Icons.description_outlined,
+                              maxLines: 3,
+                              validator: (value) => value == null || value.isEmpty
+                                  ? 'Description is required'
+                                  : null,
+                            ),
+                            const SizedBox(height: 14),
+                            AppTextField(
+                              hint: 'Where did you find it?',
+                              controller: _locationCtrl,
+                              prefixIcon: Icons.location_on_outlined,
+                              validator: (value) =>
+                                  value == null || value.isEmpty ? 'Location is required' : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      ReportSectionCard(
+                        title: 'Storage status',
+                        subtitle: 'Tell the owner and verifier where the item is currently kept.',
+                        child: Column(
+                          children: _storageOptions.map((option) {
+                            final selected = _storageOption == option;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              margin: const EdgeInsets.only(bottom: 10),
+                              decoration: BoxDecoration(
+                                color: selected ? AppTheme.primary.withOpacity(0.08) : AppTheme.canvas,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: selected ? AppTheme.primary : Colors.transparent,
+                                ),
+                              ),
+                              child: RadioListTile<String>(
+                                value: option,
+                                groupValue: _storageOption,
+                                activeColor: AppTheme.primary,
+                                title: Text(option),
+                                onChanged: (value) => setState(() => _storageOption = value),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      AppButton(
+                        text: 'Submit found report',
+                        onPressed: _submit,
+                        isLoading: _isSubmitting,
+                        icon: Icons.send_rounded,
+                        color: AppTheme.success,
+                      ),
+                      const SizedBox(height: 24),
+                    ]),
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Photo Upload (required)
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 180,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-                    border: Border.all(
-                        color: _selectedImage == null
-                            ? const Color(0xFF4CAF50).withOpacity(0.4)
-                            : Colors.transparent,
-                        style: BorderStyle.solid),
-                    boxShadow: AppTheme.cardShadow,
-                  ),
-                  child: _selectedImage != null
-                      ? ClipRRect(
-                    borderRadius:
-                    BorderRadius.circular(AppTheme.cardRadius),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.file(_selectedImage!, fit: BoxFit.cover),
-                        Positioned(
-                          bottom: 8,
-                          right: 8,
-                          child: GestureDetector(
-                            onTap: _pickImage,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.edit,
-                                  color: Colors.white, size: 16),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                      : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.add_photo_alternate_outlined,
-                          size: 44, color: Color(0xFF4CAF50)),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Add Photo (Required)',
-                        style: TextStyle(
-                          color: Color(0xFF4CAF50),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'A clear photo is required for found items',
-                        style: TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              _sectionLabel('Item Details'),
-              const SizedBox(height: 12),
-
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                decoration: InputDecoration(
-                  hintText: 'Category (optional)',
-                  prefixIcon: const Icon(Icons.category_outlined,
-                      color: AppTheme.textSecondary, size: 20),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.inputRadius),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.inputRadius),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                ),
-                items: _categories
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedCategory = v),
-              ),
-              const SizedBox(height: 14),
-
-              AppTextField(
-                hint: 'Description of the item *',
-                controller: _descriptionCtrl,
-                prefixIcon: Icons.description_outlined,
-                maxLines: 3,
-                validator: (v) => v == null || v.isEmpty
-                    ? 'Description is required'
-                    : null,
-              ),
-              const SizedBox(height: 14),
-
-              AppTextField(
-                hint: 'Where did you find it? *',
-                controller: _locationCtrl,
-                prefixIcon: Icons.location_on_outlined,
-                validator: (v) =>
-                v == null || v.isEmpty ? 'Location is required' : null,
-              ),
-              const SizedBox(height: 20),
-
-              _sectionLabel('📦 Where did you keep it?'),
-              const SizedBox(height: 10),
-              ..._storageOptions.map(
-                    (opt) => RadioListTile<String>(
-                  value: opt,
-                  groupValue: _storageOption,
-                  onChanged: (v) => setState(() => _storageOption = v),
-                  title: Text(opt, style: const TextStyle(fontSize: 13)),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  activeColor: AppTheme.primary,
-                ),
-              ),
-              const SizedBox(height: 32),
-              AppButton(
-                text: 'Submit Found Report',
-                onPressed: _submit,
-                isLoading: _isSubmitting,
-                icon: Icons.send_rounded,
-                color: const Color(0xFF4CAF50),
-              ),
-              const SizedBox(height: 20),
-            ],
           ),
         ),
       ),
     );
-  }
-
-  Widget _sectionLabel(String text) {
-    return Text(text,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-          color: AppTheme.textPrimary,
-        ));
   }
 }

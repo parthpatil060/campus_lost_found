@@ -1,53 +1,12 @@
-import 'dart:math' as math;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
+import '../../models/notification_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
-import '../../models/notification_model.dart';
-
-// ─── Modern Clean Palette ───────────────────────────────────────────────────
-class _D {
-  static const bg        = Color(0xFFF8F9FA); // Minimalist off-white background
-  static const surface   = Colors.white; // Solid white cards
-  static const border    = Color(0xFFE5E7EB); // Very subtle gray border
-  static const primary   = Color(0xFF3B82F6); // Modern soft blue
-  static const primaryBg = Color(0xFFEFF6FF);
-  static const green     = Color(0xFF10B981);
-  static const greenBg   = Color(0xFFECFDF5);
-  static const red       = Color(0xFFEF4444);
-  static const redBg     = Color(0xFFFEF2F2);
-  static const amber     = Color(0xFFF59E0B);
-  static const amberBg   = Color(0xFFFFFBEB);
-  static const purple    = Color(0xFF8B5CF6);
-  static const purpleBg  = Color(0xFFF5F3FF);
-  static const textHi    = Color(0xFF111827); // Deep gray-black for contrast
-  static const textMid   = Color(0xFF4B5563);
-  static const textLow   = Color(0xFF6B7280);
-  static const divider   = Color(0xFFF3F4F6);
-
-  static const gradient = LinearGradient(
-    colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  static List<BoxShadow> glow = [
-    BoxShadow(
-      color: primary.withOpacity(0.35),
-      blurRadius: 20,
-      offset: const Offset(0, 6),
-    ),
-  ];
-
-  static List<BoxShadow> cardShadow = [
-    BoxShadow(
-      color: const Color(0xFF000000).withOpacity(0.04),
-      blurRadius: 16,
-      offset: const Offset(0, 4),
-    ),
-  ];
-}
+import '../../utils/app_theme.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -59,779 +18,718 @@ class UserDashboard extends StatefulWidget {
 class _UserDashboardState extends State<UserDashboard>
     with SingleTickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
-  late AnimationController _fadeCtrl;
-  late Animation<double> _fadeAnim;
-  int _navIndex = 0;
-  int _tabIndex = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
 
   @override
   void initState() {
     super.initState();
-    _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
-    _fadeAnim =
-        CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    _fadeCtrl.forward();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..forward();
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
   }
 
   @override
   void dispose() {
-    _fadeCtrl.dispose();
+    _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _showInfoDialog(String title, String body) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 56,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: AppTheme.border,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Create a new report',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Choose the type of report you want to submit.',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _CreateOptionCard(
+                    title: 'Report Lost',
+                    subtitle: 'Track a missing item',
+                    icon: Icons.search_off_rounded,
+                    color: AppTheme.error,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(this.context, '/report-lost');
+                    },
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _CreateOptionCard(
+                    title: 'Report Found',
+                    subtitle: 'Log an item you found',
+                    icon: Icons.inventory_2_rounded,
+                    color: AppTheme.success,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(this.context, '/report-found');
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final user = auth.currentUser;
-    if (user == null) return const SizedBox();
+    final user = context.watch<AuthProvider>().currentUser;
+    if (user == null) return const SizedBox.shrink();
 
-    final firstName = user.name.split(' ').first;
     final initials = user.name
         .split(' ')
+        .where((part) => part.isNotEmpty)
         .take(2)
-        .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
+        .map((part) => part[0].toUpperCase())
         .join();
+    final firstName = user.name.split(' ').first;
 
     return Scaffold(
-      backgroundColor: _D.bg,
-      body: FadeTransition(
-        opacity: _fadeAnim,
+      key: _scaffoldKey,
+      drawer: _DashboardDrawer(
+        userName: user.name,
+        email: user.email,
+        initials: initials.isEmpty ? 'U' : initials,
+        onMyReports: () => Navigator.pushNamed(context, '/my-reports'),
+        onNotifications: () => Navigator.pushNamed(context, '/notifications'),
+        onHowToUse: () => _showInfoDialog(
+          'How to use the app',
+          'Create a clear lost or found report, keep details accurate, and watch notifications so you can respond quickly when a verifier confirms a match.',
+        ),
+        onTerms: () => _showInfoDialog(
+          'Terms and conditions',
+          'Submit accurate reports only, do not claim items that are not yours, and cooperate with verification requests made for campus safety.',
+        ),
+        onLogout: () async {
+          await context.read<AuthProvider>().signOut();
+          if (mounted) Navigator.pushReplacementNamed(context, '/login');
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCreateSheet,
+        backgroundColor: AppTheme.accent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('New Report'),
+      ),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(color: AppTheme.background),
         child: SafeArea(
-          child: CustomScrollView(
-
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                  child: _buildHeader(context, firstName, initials, user.uid)),
-              SliverToBoxAdapter(child: _buildHero(user.uid)),
-              SliverToBoxAdapter(child: _buildStatRow(user.uid)),
-
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Recent Reports',
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: _D.textHi)),
-                      GestureDetector(
-                        onTap: () =>
-                            Navigator.pushNamed(context, '/my-reports'),
-                        child: const Text('View all',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: _D.primary,
-                                fontWeight: FontWeight.w500)),
-                      ),
-                    ],
+          child: FadeTransition(
+            opacity: _fade,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: _TopBar(
+                      firstName: firstName,
+                      initials: initials.isEmpty ? 'U' : initials,
+                      onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
+                    ),
                   ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                  child: _buildRecentActivity(user.uid)),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 110)),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNav(context),
-      floatingActionButton: _buildFAB(context),
-      floatingActionButtonLocation:
-      FloatingActionButtonLocation.centerDocked,
-    );
-  }
-
-  // ── Header ────────────────────────────────────────────────────────────────
-  Widget _buildHeader(
-      BuildContext context, String firstName, String initials, String uid) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              gradient: _D.gradient,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(initials,
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white)),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Campus L&F',
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: _D.textHi)),
-                const Text('SIES Campus',
-                    style: TextStyle(fontSize: 11, color: _D.textLow)),
-              ],
-            ),
-          ),
-          // Month pill
-          Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: _D.surface,
-              border: Border.all(color: _D.border),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.calendar_today_outlined,
-                    size: 11, color: _D.textMid),
-                SizedBox(width: 5),
-                Text('Mar 2026',
-                    style: TextStyle(fontSize: 11, color: _D.textMid)),
-                SizedBox(width: 3),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    size: 14, color: _D.textMid),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Notification bell
-          StreamBuilder<List<NotificationModel>>(
-            stream: _firestoreService.getNotificationsForUser(
-                context.read<AuthProvider>().currentUser!.uid),
-            builder: (context, snap) {
-              final unread =
-                  snap.data?.where((n) => !n.isRead).length ?? 0;
-              return Stack(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: _D.surface,
-                      border: Border.all(color: _D.border),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.notifications_outlined,
-                          color: _D.textMid, size: 18),
-                      onPressed: () => Navigator.pushNamed(
-                          context, '/notifications'),
-                    ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                    child: _HeroPanel(userId: user.uid, firstName: firstName),
                   ),
-                  if (unread > 0)
-                    Positioned(
-                      right: 6,
-                      top: 6,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: _D.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: _D.bg, width: 1.5),
-                        ),
-                        child: Center(
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                    child: _StatsRow(userId: user.uid),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                    child: Row(
+                      children: [
+                        const Expanded(
                           child: Text(
-                            unread > 9 ? '9+' : '$unread',
-                            style: const TextStyle(
-                                fontSize: 7,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800),
+                            'Recent activity',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textPrimary,
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Hero ──────────────────────────────────────────────────────────────────
-  Widget _buildHero(String uid) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-      child: StreamBuilder(
-        stream: FirebaseFirestore.instance
-            .collection('lost_items')
-            .where('userId', isEqualTo: uid)
-            .snapshots(),
-        builder: (context, lostSnap) {
-          return StreamBuilder(
-            stream: FirebaseFirestore.instance
-                .collection('found_items')
-                .where('finderId', isEqualTo: uid)
-                .snapshots(),
-            builder: (context, foundSnap) {
-              final total = (lostSnap.data?.docs.length ?? 0) +
-                  (foundSnap.data?.docs.length ?? 0);
-              final firstName = context
-                  .read<AuthProvider>()
-                  .currentUser!
-                  .name
-                  .split(' ')
-                  .first;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Hello, $firstName',
-                    style: const TextStyle(
-                        fontSize: 13,
-                        color: _D.textLow,
-                        letterSpacing: 0.4),
-                  ),
-                  const SizedBox(height: 6),
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '$total',
-                          style: const TextStyle(
-                              fontSize: 42,
-                              fontWeight: FontWeight.w700,
-                              color: _D.primary,
-                              letterSpacing: -1.5,
-                              height: 1),
-                        ),
-                        const TextSpan(
-                          text: ' items tracked',
-                          style: TextStyle(
-                              fontSize: 42,
-                              fontWeight: FontWeight.w700,
-                              color: _D.textHi,
-                              letterSpacing: -1.5,
-                              height: 1),
+                        TextButton(
+                          onPressed: () => Navigator.pushNamed(context, '/my-reports'),
+                          child: const Text('View all'),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Text('This month on SIES Campus',
-                          style:
-                          TextStyle(fontSize: 13, color: _D.textLow)),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _D.greenBg,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                              color: _D.green.withOpacity(0.3)),
-                        ),
-                        child: const Text('+3 new',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: _D.green)),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  // ── Stat Row ──────────────────────────────────────────────────────────────
-  Widget _buildStatRow(String uid) {
-    Widget _buildQuickActions(BuildContext context) {
-      final actions = [
-        {'icon': Icons.search_off, 'label': 'Lost', 'color': _D.red},
-        {'icon': Icons.volunteer_activism, 'label': 'Found', 'color': _D.green},
-        {'icon': Icons.receipt_long, 'label': 'Reports', 'color': _D.primary},
-        {'icon': Icons.notifications, 'label': 'Alerts', 'color': _D.amber},
-      ];
-
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Quick Actions',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 14),
-            Row(
-              children: actions.map((a) {
-                return Expanded(
+                ),
+                SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          color: (a['color'] as Color).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(a['icon'] as IconData,
-                                color: a['color'] as Color),
-                            const SizedBox(height: 6),
-                            Text(a['label'] as String,
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: a['color'] as Color)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: _StatCard(
-              label: 'Lost',
-              icon: Icons.error_outline_rounded,
-              iconColor: _D.red,
-              iconBg: _D.redBg,
-              stream: FirebaseFirestore.instance
-                  .collection('lost_items')
-                  .where('userId', isEqualTo: uid)
-                  .snapshots()
-                  .map((s) => s.docs.length),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              label: 'Found',
-              icon: Icons.check_circle_outline_rounded,
-              iconColor: _D.green,
-              iconBg: _D.greenBg,
-              stream: FirebaseFirestore.instance
-                  .collection('found_items')
-                  .where('finderId', isEqualTo: uid)
-                  .snapshots()
-                  .map((s) => s.docs.length),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              label: 'Matched',
-              icon: Icons.compare_arrows_rounded,
-              iconColor: _D.purple,
-              iconBg: _D.purpleBg,
-              stream: FirebaseFirestore.instance
-                  .collection('lost_items')
-                  .where('userId', isEqualTo: uid)
-                  .where('status', isEqualTo: 'matched')
-                  .snapshots()
-                  .map((s) => s.docs.length),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Chart Card ────────────────────────────────────────────────────────────
-
-
-
-
-  // ── Tabs ──────────────────────────────────────────────────────────────────
-
-
-  // ── Recent Activity ───────────────────────────────────────────────────────
-  Widget _buildRecentActivity(String uid) {
-    return StreamBuilder(
-      stream: FirebaseFirestore.instance
-          .collection('lost_items')
-          .where('userId', isEqualTo: uid)
-          .limit(3)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return _EmptyState();
-        }
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            children: snapshot.data!.docs.map((doc) {
-              final data = doc.data();
-              return _ActivityTile(
-                title: data['itemName'] ?? 'Item',
-                subtitle: data['location'] ?? 'Unknown',
-                status: data['status'] ?? 'pending',
-                date: (data['createdAt'] as Timestamp).toDate(),
-                isLost: true,
-              );
-            }).toList(),
-          ),
-        );
-      },
-    );
-  }
-
-  // ── Donut Card ────────────────────────────────────────────────────────────
-  Widget _buildInsightCard() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: _D.gradient,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.lightbulb, color: Colors.white),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                "Tip: Add clear descriptions to increase chances of finding items!",
-                style: TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Bottom Nav ────────────────────────────────────────────────────────────
-  Widget _buildBottomNav(BuildContext context) {
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      decoration: BoxDecoration(
-        color: _D.bg,
-        border: Border(top: BorderSide(color: _D.border)),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _D.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: _D.border),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                active: _navIndex == 0,
-                onTap: () => setState(() => _navIndex = 0)),
-            _NavItem(
-                icon: Icons.receipt_long_rounded,
-                label: 'Reports',
-                active: _navIndex == 1,
-                onTap: () {
-                  setState(() => _navIndex = 1);
-                  Navigator.pushNamed(context, '/my-reports');
-                }),
-            _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
-                active: _navIndex == 3,
-                onTap: () {
-                  setState(() => _navIndex = 3);
-                  _showProfileSheet(context);
-                }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFAB(BuildContext context) {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: _D.gradient,
-        shape: BoxShape.circle,
-        boxShadow: _D.glow,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: () => _showReportSheet(context),
-          child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
-        ),
-      ),
-    );
-  }
-
-  void _showReportSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: _D.surface,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: _D.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: _D.border, borderRadius: BorderRadius.circular(4)),
-            ),
-            const SizedBox(height: 20),
-            const Text('New Report',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: _D.textHi)),
-            const SizedBox(height: 6),
-            const Text('What would you like to report?',
-                style: TextStyle(fontSize: 13, color: _D.textLow)),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: _SheetAction(
-                    icon: Icons.search_off_rounded,
-                    label: 'Lost Item',
-                    color: _D.red,
-                    bg: _D.redBg,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/report-lost');
-                    },
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _RecentActivityList(userId: user.uid),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _SheetAction(
-                    icon: Icons.volunteer_activism_rounded,
-                    label: 'Found Item',
-                    color: _D.green,
-                    bg: _D.greenBg,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/report-found');
-                    },
-                  ),
-                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
             ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showProfileSheet(BuildContext context) {
-    final user = context.read<AuthProvider>().currentUser;
-    if (user == null) return;
-    final initials = user.name
-        .split(' ')
-        .take(2)
-        .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
-        .join();
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: _D.surface,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: _D.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: _D.border, borderRadius: BorderRadius.circular(4)),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                  gradient: _D.gradient, shape: BoxShape.circle),
-              child: Center(
-                child: Text(initials,
-                    style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white)),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(user.name,
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: _D.textHi)),
-            const SizedBox(height: 4),
-            Text(user.email,
-                style:
-                const TextStyle(fontSize: 13, color: _D.textMid)),
-            const SizedBox(height: 12),
-            Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-              decoration: BoxDecoration(
-                color: _D.primaryBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _D.primary.withOpacity(0.3)),
-              ),
-              child: Text(
-                user.role.toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: _D.primary,
-                    letterSpacing: 0.8),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: GestureDetector(
-                onTap: () async {
-                  Navigator.pop(context);
-                  await context.read<AuthProvider>().signOut();
-                  if (mounted) {
-                    Navigator.pushReplacementNamed(context, '/login');
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: _D.redBg,
-                    borderRadius: BorderRadius.circular(14),
-                    border:
-                    Border.all(color: _D.red.withOpacity(0.3)),
-                  ),
-                  child: const Center(
-                    child: Text('Sign out',
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _D.red)),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-class _StatCard extends StatelessWidget {
-  final String label;
+class _TopBar extends StatelessWidget {
+  final String firstName;
+  final String initials;
+  final VoidCallback onMenuTap;
+
+  const _TopBar({
+    required this.firstName,
+    required this.initials,
+    required this.onMenuTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = context.read<AuthProvider>().currentUser!.uid;
+    return Row(
+      children: [
+        InkWell(
+          onTap: onMenuTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Ink(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.primary.withOpacity(0.18)),
+              boxShadow: AppTheme.cardShadow,
+            ),
+            child: Center(
+              child: Text(
+                initials,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welcome back, $firstName',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const Text(
+                'Your campus lost and found workspace',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        StreamBuilder<List<NotificationModel>>(
+          stream: FirestoreService().getNotificationsForUser(uid),
+          builder: (context, snapshot) {
+            final unread = snapshot.data?.where((n) => !n.isRead).length ?? 0;
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton.filledTonal(
+                  onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.textPrimary,
+                    fixedSize: const Size(52, 52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  icon: const Icon(Icons.notifications_none_rounded),
+                ),
+                if (unread > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.error,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        unread > 9 ? '9+' : '$unread',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroPanel extends StatelessWidget {
+  final String userId;
+  final String firstName;
+
+  const _HeroPanel({required this.userId, required this.firstName});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('lost_items')
+          .where('userId', isEqualTo: userId)
+          .snapshots(),
+      builder: (context, lostSnapshot) {
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('found_items')
+              .where('finderId', isEqualTo: userId)
+              .snapshots(),
+          builder: (context, foundSnapshot) {
+            final lost = lostSnapshot.data?.docs.length ?? 0;
+            final found = foundSnapshot.data?.docs.length ?? 0;
+            final total = lost + found;
+            return Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.primary,
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: AppTheme.buttonShadow,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Good to see you, $firstName',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '$total active records in your account',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'A clearer dashboard for faster reporting, better tracking, and simpler match follow-up.',
+                    style: TextStyle(color: Colors.white70, height: 1.5),
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _InfoPill(icon: Icons.search_off_rounded, label: '$lost lost'),
+                      _InfoPill(icon: Icons.inventory_2_rounded, label: '$found found'),
+                      const _InfoPill(
+                        icon: Icons.verified_user_outlined,
+                        label: 'Verifier support',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _StatsRow extends StatelessWidget {
+  final String userId;
+
+  const _StatsRow({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _MetricCard(
+            title: 'Lost',
+            icon: Icons.search_off_rounded,
+            tint: AppTheme.error,
+            stream: FirebaseFirestore.instance
+                .collection('lost_items')
+                .where('userId', isEqualTo: userId)
+                .snapshots()
+                .map((snapshot) => snapshot.docs.length),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _MetricCard(
+            title: 'Found',
+            icon: Icons.inventory_2_rounded,
+            tint: AppTheme.success,
+            stream: FirebaseFirestore.instance
+                .collection('found_items')
+                .where('finderId', isEqualTo: userId)
+                .snapshots()
+                .map((snapshot) => snapshot.docs.length),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _MetricCard(
+            title: 'Matched',
+            icon: Icons.compare_arrows_rounded,
+            tint: AppTheme.primary,
+            stream: FirebaseFirestore.instance
+                .collection('lost_items')
+                .where('userId', isEqualTo: userId)
+                .where('status', isEqualTo: 'matched')
+                .snapshots()
+                .map((snapshot) => snapshot.docs.length),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentActivityList extends StatelessWidget {
+  final String userId;
+
+  const _RecentActivityList({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    final lostStream = FirebaseFirestore.instance
+        .collection('lost_items')
+        .where('userId', isEqualTo: userId)
+        .snapshots();
+    final foundStream = FirebaseFirestore.instance
+        .collection('found_items')
+        .where('finderId', isEqualTo: userId)
+        .snapshots();
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: lostStream,
+      builder: (context, lostSnapshot) {
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: foundStream,
+          builder: (context, foundSnapshot) {
+            final items = <Map<String, dynamic>>[];
+            for (final doc in lostSnapshot.data?.docs ?? []) {
+              final data = doc.data();
+              items.add({
+                'title': data['itemName'] ?? 'Lost item',
+                'subtitle': (data['possibleLocations'] as List<dynamic>? ?? [])
+                    .take(2)
+                    .join(', '),
+                'status': data['status'] ?? 'pending',
+                'createdAt': (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                'isLost': true,
+                'photoURL': data['photoURL'],
+              });
+            }
+            for (final doc in foundSnapshot.data?.docs ?? []) {
+              final data = doc.data();
+              items.add({
+                'title': data['description'] ?? 'Found item',
+                'subtitle': data['locationFound'] ?? 'Campus',
+                'status': data['status'] ?? 'pending',
+                'createdAt': (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                'isLost': false,
+                'photoURL': data['photoURL'],
+              });
+            }
+            items.sort(
+              (a, b) => (b['createdAt'] as DateTime).compareTo(a['createdAt'] as DateTime),
+            );
+            if (items.isEmpty) {
+              return const _EmptyCard(
+                icon: Icons.inbox_outlined,
+                title: 'No reports yet',
+                subtitle: 'Your latest lost and found activity will appear here.',
+              );
+            }
+            return Column(
+              children: items.take(5).map((item) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _ActivityTile(
+                    title: item['title'] as String,
+                    subtitle: item['subtitle'] as String,
+                    status: item['status'] as String,
+                    date: item['createdAt'] as DateTime,
+                    isLost: item['isLost'] as bool,
+                    photoURL: item['photoURL'] as String?,
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DashboardDrawer extends StatelessWidget {
+  final String userName;
+  final String email;
+  final String initials;
+  final VoidCallback onMyReports;
+  final VoidCallback onNotifications;
+  final VoidCallback onHowToUse;
+  final VoidCallback onTerms;
+  final VoidCallback onLogout;
+
+  const _DashboardDrawer({
+    required this.userName,
+    required this.email,
+    required this.initials,
+    required this.onMyReports,
+    required this.onNotifications,
+    required this.onHowToUse,
+    required this.onTerms,
+    required this.onLogout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      width: 300,
+      backgroundColor: AppTheme.background,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      child: CircleAvatar(
+                        radius: 27,
+                        backgroundColor: Colors.white,
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            userName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            email,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              _DrawerTile(
+                icon: Icons.description_outlined,
+                label: 'My reports',
+                onTap: onMyReports,
+              ),
+              _DrawerTile(
+                icon: Icons.notifications_outlined,
+                label: 'Notifications',
+                onTap: onNotifications,
+              ),
+              _DrawerTile(
+                icon: Icons.play_circle_outline_rounded,
+                label: 'How to use the app',
+                onTap: onHowToUse,
+              ),
+              _DrawerTile(
+                icon: Icons.policy_outlined,
+                label: 'Terms and conditions',
+                onTap: onTerms,
+              ),
+              const Spacer(),
+              _DrawerTile(
+                icon: Icons.logout_rounded,
+                label: 'Logout',
+                color: AppTheme.error,
+                onTap: onLogout,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  final String title;
   final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
+  final Color tint;
   final Stream<int> stream;
 
-  const _StatCard({
-    required this.label,
+  const _MetricCard({
+    required this.title,
     required this.icon,
-    required this.iconColor,
-    required this.iconBg,
+    required this.tint,
     required this.stream,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _D.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _D.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 16),
+    return StreamBuilder<int>(
+      stream: stream,
+      builder: (context, snapshot) {
+        final value = snapshot.data ?? 0;
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppTheme.border),
+            boxShadow: AppTheme.cardShadow,
           ),
-          const SizedBox(height: 10),
-          StreamBuilder<int>(
-            stream: stream,
-            builder: (context, snap) => Text(
-              '${snap.data ?? 0}'.padLeft(2, '0'),
-              style: const TextStyle(
-                  fontSize: 24,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: tint.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: tint),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                value.toString().padLeft(2, '0'),
+                style: const TextStyle(
+                  fontSize: 28,
                   fontWeight: FontWeight.w700,
-                  color: _D.textHi,
-                  height: 1),
-            ),
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(title, style: const TextStyle(color: AppTheme.textSecondary)),
+            ],
           ),
-          const SizedBox(height: 3),
-          Text(label,
-              style: const TextStyle(fontSize: 10, color: _D.textLow)),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
-// ─── Activity Tile ────────────────────────────────────────────────────────────
 class _ActivityTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final String status;
   final DateTime date;
   final bool isLost;
+  final String? photoURL;
 
   const _ActivityTile({
     required this.title,
@@ -839,466 +737,289 @@ class _ActivityTile extends StatelessWidget {
     required this.status,
     required this.date,
     required this.isLost,
+    this.photoURL,
   });
 
   @override
   Widget build(BuildContext context) {
+    final accent = isLost ? AppTheme.error : AppTheme.success;
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _D.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _D.border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: isLost ? _D.redBg : _D.greenBg,
-              borderRadius: BorderRadius.circular(13),
+              color: accent.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(
-              isLost
-                  ? Icons.error_outline_rounded
-                  : Icons.check_circle_outline_rounded,
-              color: isLost ? _D.red : _D.green,
-              size: 20,
-            ),
+            clipBehavior: Clip.antiAlias,
+            child: photoURL != null && photoURL!.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: photoURL!,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => Icon(
+                      isLost ? Icons.search_off_rounded : Icons.inventory_2_rounded,
+                      color: accent,
+                    ),
+                  )
+                : Icon(
+                    isLost ? Icons.search_off_rounded : Icons.inventory_2_rounded,
+                    color: accent,
+                  ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _D.textHi)),
-                const SizedBox(height: 3),
                 Text(
-                  '${isLost ? 'Lost' : 'Found'} · $subtitle · ${_formatDate(date)}',
+                  title,
                   style: const TextStyle(
-                      fontSize: 11, color: _D.textLow),
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle.isEmpty ? 'Campus update' : subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _activityDate(date),
+                  style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          _StatusChip(status: status),
+          _StatusPill(status: status),
         ],
       ),
     );
   }
 
-  String _formatDate(DateTime date) {
-    final diff = DateTime.now().difference(date);
-    if (diff.inDays == 0) return 'Today';
-    if (diff.inDays == 1) return 'Yesterday';
-    return '${diff.inDays}d ago';
+  String _activityDate(DateTime date) {
+    final difference = DateTime.now().difference(date);
+    if (difference.inDays <= 0) return 'Updated today';
+    if (difference.inDays == 1) return 'Updated yesterday';
+    return 'Updated ${difference.inDays} days ago';
   }
 }
 
-// ─── Status Chip ─────────────────────────────────────────────────────────────
-class _StatusChip extends StatelessWidget {
+class _StatusPill extends StatelessWidget {
   final String status;
-  const _StatusChip({required this.status});
+
+  const _StatusPill({required this.status});
 
   @override
   Widget build(BuildContext context) {
-    final (color, bg, border) = switch (status) {
-      'matched' => (_D.green, _D.greenBg, _D.green.withOpacity(0.3)),
-      'claimed' => (_D.primary, _D.primaryBg, _D.primary.withOpacity(0.3)),
-      _ => (_D.amber, _D.amberBg, _D.amber.withOpacity(0.3)),
+    final normalized = status.toLowerCase();
+    final (color, icon) = switch (normalized) {
+      'matched' => (AppTheme.success, Icons.verified_rounded),
+      'claimed' => (AppTheme.primary, Icons.done_all_rounded),
+      'rejected' => (AppTheme.error, Icons.cancel_outlined),
+      _ => (AppTheme.warning, Icons.schedule_rounded),
     };
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border),
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        status[0].toUpperCase() + status.substring(1),
-        style: TextStyle(
-            fontSize: 10, fontWeight: FontWeight.w700, color: color),
-      ),
-    );
-  }
-}
-
-// ─── Legend Item ──────────────────────────────────────────────────────────────
-class _LegendItem extends StatelessWidget {
-  final Color color;
-  final String label;
-  final String pct;
-  const _LegendItem(
-      {required this.color, required this.label, required this.pct});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-              color: color, borderRadius: BorderRadius.circular(3)),
-        ),
-        const SizedBox(width: 8),
-        Text(label,
-            style: const TextStyle(fontSize: 12, color: _D.textMid)),
-        const Spacer(),
-        Text(pct,
-            style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: _D.textHi)),
-      ],
-    );
-  }
-}
-
-// ─── Nav Item ─────────────────────────────────────────────────────────────────
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: active ? _D.primaryBg : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                size: 20, color: active ? _D.primary : _D.textLow),
-            if (active) ...[
-              const SizedBox(width: 5),
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: _D.primary)),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Sheet Action Button ──────────────────────────────────────────────────────
-class _SheetAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final Color bg;
-  final VoidCallback onTap;
-
-  const _SheetAction({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.bg,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.25)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 26),
-            const SizedBox(height: 8),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Empty State ──────────────────────────────────────────────────────────────
-class _EmptyState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: _D.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _D.border),
-        ),
-        child: Column(
-          children: const [
-            Icon(Icons.inbox_outlined, color: _D.textLow, size: 38),
-            SizedBox(height: 10),
-            Text('No activity yet',
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: _D.textHi)),
-            SizedBox(height: 4),
-            Text('Report a lost or found item to get started',
-                style: TextStyle(fontSize: 12, color: _D.textLow),
-                textAlign: TextAlign.center),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Activity Chart Painter ───────────────────────────────────────────────────
-class _ActivityChartPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // Grid lines
-    final gridPaint = Paint()
-      ..color = _D.border
-      ..strokeWidth = 0.8;
-    for (int i = 0; i <= 3; i++) {
-      final y = h * i / 3;
-      canvas.drawLine(Offset(0, y), Offset(w, y), gridPaint);
-    }
-
-    // Primary line points (lost items trend)
-    final pts1 = [
-      Offset(0, h * 0.8),
-      Offset(w * 0.2, h * 0.45),
-      Offset(w * 0.37, h * 0.35),
-      Offset(w * 0.5, h * 0.22),
-      Offset(w * 0.65, h * 0.45),
-      Offset(w * 0.82, h * 0.28),
-      Offset(w, h * 0.32),
-    ];
-
-    // Fill under primary line
-    final fillPath = Path()..moveTo(0, h);
-    fillPath.lineTo(pts1.first.dx, pts1.first.dy);
-    for (int i = 0; i < pts1.length - 1; i++) {
-      final cp1 = Offset(
-          (pts1[i].dx + pts1[i + 1].dx) / 2, pts1[i].dy);
-      final cp2 = Offset(
-          (pts1[i].dx + pts1[i + 1].dx) / 2, pts1[i + 1].dy);
-      fillPath.cubicTo(
-          cp1.dx, cp1.dy, cp2.dx, cp2.dy, pts1[i + 1].dx, pts1[i + 1].dy);
-    }
-    fillPath.lineTo(w, h);
-    fillPath.close();
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          _D.primary.withOpacity(0.28),
-          _D.primary.withOpacity(0.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            '${normalized[0].toUpperCase()}${normalized.substring(1)}',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
         ],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
-    canvas.drawPath(fillPath, fillPaint);
-
-    // Primary stroke
-    final linePaint1 = Paint()
-      ..color = _D.primary
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final linePath1 = Path()..moveTo(pts1.first.dx, pts1.first.dy);
-    for (int i = 0; i < pts1.length - 1; i++) {
-      final cp1 = Offset(
-          (pts1[i].dx + pts1[i + 1].dx) / 2, pts1[i].dy);
-      final cp2 = Offset(
-          (pts1[i].dx + pts1[i + 1].dx) / 2, pts1[i + 1].dy);
-      linePath1.cubicTo(
-          cp1.dx, cp1.dy, cp2.dx, cp2.dy, pts1[i + 1].dx, pts1[i + 1].dy);
-    }
-    canvas.drawPath(linePath1, linePaint1);
-
-    // Secondary dashed line (found items)
-    final pts2 = [
-      Offset(0, h * 0.9),
-      Offset(w * 0.2, h * 0.65),
-      Offset(w * 0.37, h * 0.75),
-      Offset(w * 0.5, h * 0.6),
-      Offset(w * 0.65, h * 0.5),
-      Offset(w * 0.82, h * 0.45),
-      Offset(w, h * 0.52),
-    ];
-
-    final dashPaint = Paint()
-      ..color = _D.green
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    // Draw dashed
-    final dashPath = Path()..moveTo(pts2.first.dx, pts2.first.dy);
-    for (int i = 0; i < pts2.length - 1; i++) {
-      final cp1 = Offset((pts2[i].dx + pts2[i + 1].dx) / 2, pts2[i].dy);
-      final cp2 = Offset((pts2[i].dx + pts2[i + 1].dx) / 2, pts2[i + 1].dy);
-      dashPath.cubicTo(
-          cp1.dx, cp1.dy, cp2.dx, cp2.dy, pts2[i + 1].dx, pts2[i + 1].dy);
-    }
-    _drawDashedPath(canvas, dashPath, dashPaint);
-
-    // Highlight dot at peak
-    final dotX = w * 0.5;
-    final dotY = h * 0.22;
-    canvas.drawCircle(
-        Offset(dotX, dotY), 7, Paint()..color = _D.primary.withOpacity(0.2));
-    canvas.drawCircle(
-        Offset(dotX, dotY), 4, Paint()..color = _D.primary);
-    canvas.drawCircle(
-        Offset(dotX, dotY),
-        4,
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5);
+      ),
+    );
   }
-
-  void _drawDashedPath(Canvas canvas, Path path, Paint paint) {
-    final metrics = path.computeMetrics();
-    const dashLength = 5.0;
-    const gapLength = 4.0;
-    for (final metric in metrics) {
-      double distance = 0;
-      bool draw = true;
-      while (distance < metric.length) {
-        final len = draw ? dashLength : gapLength;
-        if (draw) {
-          canvas.drawPath(
-              metric.extractPath(distance, distance + len), paint);
-        }
-        distance += len;
-        draw = !draw;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ─── Donut Chart Painter ──────────────────────────────────────────────────────
-class _DonutPainter extends CustomPainter {
-  final int total;
-  const _DonutPainter({required this.total});
+class _InfoPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoPill({required this.icon, required this.label});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 10;
-    const strokeWidth = 14.0;
-
-    final segments = [
-      (0.38, _D.primary),
-      (0.24, _D.green),
-      (0.21, _D.red),
-      (0.17, _D.amber),
-    ];
-
-    // Track background
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = _D.border
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth,
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
-
-    double startAngle = -math.pi / 2;
-    const gap = 0.04;
-
-    for (final (pct, color) in segments) {
-      final sweep = (pct * 2 * math.pi) - gap;
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweep,
-        false,
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = strokeWidth
-          ..strokeCap = StrokeCap.round,
-      );
-      startAngle += pct * 2 * math.pi;
-    }
-
-    // Center text
-    final numPainter = TextPainter(
-      text: TextSpan(
-        text: '$total',
-        style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: _D.textHi),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    numPainter.paint(
-        canvas,
-        center -
-            Offset(numPainter.width / 2, numPainter.height / 2 + 7));
-
-    final labelPainter = TextPainter(
-      text: const TextSpan(
-        text: 'reports',
-        style: const TextStyle(fontSize: 9, color: _D.textLow),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    labelPainter.paint(
-        canvas,
-        center -
-            Offset(labelPainter.width / 2, -numPainter.height / 2 - 4));
   }
+}
+
+class _DrawerTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _DrawerTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context) {
+    final effectiveColor = color ?? AppTheme.textPrimary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        tileColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        leading: Icon(icon, color: effectiveColor),
+        title: Text(
+          label,
+          style: TextStyle(color: effectiveColor, fontWeight: FontWeight.w600),
+        ),
+        onTap: () {
+          Navigator.pop(context);
+          onTap();
+        },
+      ),
+    );
+  }
+}
+
+class _CreateOptionCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CreateOptionCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Ink(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          color: color.withOpacity(0.06),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            Text(subtitle, style: const TextStyle(color: AppTheme.textSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _EmptyCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: AppTheme.canvas,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(icon, color: AppTheme.primary),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppTheme.textSecondary, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
 }

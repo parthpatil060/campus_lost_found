@@ -1,181 +1,201 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Colors
-  static const Color primary = Color(0xFF5666FF);
-  static const Color accent = Color(0xFFFF7E5F);
-  static const Color background = Color(0xFFF6F7FB);
-  static const Color textPrimary = Color(0xFF1F1F1F);
-  static const Color textSecondary = Color(0xFF7A7A7A);
-  static const Color cardBackground = Colors.white;
-  static const Color success = Color(0xFF4CAF50);
-  static const Color warning = Color(0xFFFFC107);
-  static const Color error = Color(0xFFE53935);
+  static const Color primary = Color(0xFF2E294E);
+  static const Color accent = Color(0xFFF46036);
+  static const Color background = Color(0xFFFFFFFF);
+  static const Color canvas = Color(0xFFC5D86D);
+  static const Color surface = Colors.white;
+  static const Color textPrimary = Color(0xFF2E294E);
+  static const Color textSecondary = Color(0xFF6C6784);
+  static const Color border = Color(0xFFE7E7EA);
+  static const Color success = Color(0xFF1B998B);
+  static const Color warning = Color(0xFFC5D86D);
+  static const Color error = Color(0xFFD7263D);
 
-  // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF5666FF), Color(0xFF7B89FF)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
+    colors: [primary, primary],
   );
 
-  static const LinearGradient splashGradient = LinearGradient(
-    colors: [Color(0xFF1A237E), Color(0xFF283593), Color(0xFF3949AB)],
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
+  static const LinearGradient softGradient = LinearGradient(
+    colors: [background, background],
   );
 
-  static const LinearGradient accentGradient = LinearGradient(
-    colors: [Color(0xFFFF7E5F), Color(0xFFFFB347)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  static const double buttonRadius = 18;
+  static const double inputRadius = 18;
+  static const double cardRadius = 24;
 
-  // Border Radii
-  static const double buttonRadius = 16.0;
-  static const double inputRadius = 14.0;
-  static const double cardRadius = 18.0;
+  static List<BoxShadow> get cardShadow => [
+        BoxShadow(
+          color: const Color(0xFF0B172A).withOpacity(0.06),
+          blurRadius: 24,
+          offset: const Offset(0, 12),
+        ),
+      ];
 
-  // Shadows
-  static List<BoxShadow> cardShadow = [
-    BoxShadow(
-      color: Colors.black.withOpacity(0.06),
-      blurRadius: 20,
-      offset: const Offset(0, 4),
-    ),
-  ];
-
-  static List<BoxShadow> buttonShadow = [
-    BoxShadow(
-      color: primary.withOpacity(0.3),
-      blurRadius: 12,
-      offset: const Offset(0, 4),
-    ),
-  ];
+  static List<BoxShadow> get buttonShadow => [
+        BoxShadow(
+          color: primary.withOpacity(0.24),
+          blurRadius: 22,
+          offset: const Offset(0, 10),
+        ),
+      ];
 
   static ThemeData get lightTheme {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: primary,
+      primary: primary,
+      secondary: accent,
+      brightness: Brightness.light,
+      surface: surface,
+    );
+
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primary,
-        brightness: Brightness.light,
-        background: background,
-        primary: primary,
-        secondary: accent,
-      ),
+      colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
       fontFamily: 'Poppins',
+      cardColor: surface,
+      dividerColor: border,
       textTheme: const TextTheme(
         displayLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 32,
+          fontSize: 34,
           fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
         displayMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 26,
-          fontWeight: FontWeight.w600,
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
         headlineLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 22,
+          fontSize: 24,
           fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
         headlineMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
         titleLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 16,
+          fontSize: 17,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
         bodyLarge: TextStyle(
-          fontFamily: 'Poppins',
           fontSize: 15,
-          fontWeight: FontWeight.w400,
+          fontWeight: FontWeight.w500,
           color: textPrimary,
         ),
         bodyMedium: TextStyle(
-          fontFamily: 'Poppins',
           fontSize: 13,
           fontWeight: FontWeight.w400,
           color: textSecondary,
         ),
         labelLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 14,
+          fontSize: 15,
           fontWeight: FontWeight.w600,
           color: Colors.white,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: surface,
+        hintStyle: const TextStyle(
+          color: textSecondary,
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(inputRadius),
-          borderSide: BorderSide(color: Colors.grey.shade200),
+          borderSide: const BorderSide(color: border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(inputRadius),
-          borderSide: BorderSide(color: Colors.grey.shade200),
+          borderSide: const BorderSide(color: border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(inputRadius),
-          borderSide: const BorderSide(color: primary, width: 2),
+          borderSide: const BorderSide(color: primary, width: 1.8),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(inputRadius),
           borderSide: const BorderSide(color: error),
         ),
-        contentPadding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        hintStyle: const TextStyle(
-          fontFamily: 'Poppins',
-          color: textSecondary,
-          fontSize: 14,
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(inputRadius),
+          borderSide: const BorderSide(color: error, width: 1.8),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
           foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(buttonRadius),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          elevation: 0,
           textStyle: const TextStyle(
-            fontFamily: 'Poppins',
             fontSize: 15,
             fontWeight: FontWeight.w600,
+            fontFamily: 'Poppins',
           ),
         ),
       ),
-      cardTheme: CardThemeData(
-        color: cardBackground,
-        elevation: 0,
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(buttonRadius),
+          ),
+          side: const BorderSide(color: border),
+          foregroundColor: textPrimary,
+          textStyle: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Poppins',
+          ),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: canvas,
+        selectedColor: primary.withOpacity(0.12),
+        labelStyle: const TextStyle(
+          color: textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(cardRadius),
+          borderRadius: BorderRadius.circular(999),
+          side: const BorderSide(color: Colors.transparent),
         ),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: background,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: textPrimary,
-        ),
+        scrolledUnderElevation: 0,
+        centerTitle: false,
         iconTheme: IconThemeData(color: textPrimary),
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+          fontFamily: 'Poppins',
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
       ),
     );
   }

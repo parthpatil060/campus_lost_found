@@ -1,13 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
+import 'report_form_widgets.dart';
 
 class ReportLostScreen extends StatefulWidget {
   const ReportLostScreen({super.key});
@@ -22,12 +25,16 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
   final _secretDetailCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
-  final List<String> _locations = [];
+  final _locations = <String>[];
+  final _firestoreService = FirestoreService();
+  final _storageService = StorageService();
+  final _picker = ImagePicker();
+
   File? _selectedImage;
   bool _isSubmitting = false;
   String? _selectedCategory;
 
-  final List<String> _categories = [
+  final List<String> _categories = const [
     'Electronics',
     'Bag / Backpack',
     'ID Card / Documents',
@@ -38,10 +45,6 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
     'Sports Equipment',
     'Other',
   ];
-
-  final FirestoreService _firestoreService = FirestoreService();
-  final StorageService _storageService = StorageService();
-  final ImagePicker _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -56,51 +59,64 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Upload Photo',
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Camera'),
-              onTap: () async {
-                Navigator.pop(context);
-                final img = await _picker.pickImage(
-                    source: ImageSource.camera, imageQuality: 70);
-                if (img != null) {
-                  setState(() => _selectedImage = File(img.path));
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Gallery'),
-              onTap: () async {
-                Navigator.pop(context);
-                final img = await _picker.pickImage(
-                    source: ImageSource.gallery, imageQuality: 70);
-                if (img != null) {
-                  setState(() => _selectedImage = File(img.path));
-                }
-              },
-            ),
-          ],
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Upload photo',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 14),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                tileColor: AppTheme.canvas,
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Camera'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final image = await _picker.pickImage(
+                    source: ImageSource.camera,
+                    imageQuality: 70,
+                  );
+                  if (image != null) setState(() => _selectedImage = File(image.path));
+                },
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                tileColor: AppTheme.canvas,
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Gallery'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final image = await _picker.pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 70,
+                  );
+                  if (image != null) setState(() => _selectedImage = File(image.path));
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   void _addLocation() {
-    final loc = _locationCtrl.text.trim();
-    if (loc.isEmpty) return;
+    final location = _locationCtrl.text.trim();
+    if (location.isEmpty) return;
     setState(() {
-      _locations.add(loc);
+      _locations.add(location);
       _locationCtrl.clear();
     });
   }
@@ -117,14 +133,11 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
     }
 
     setState(() => _isSubmitting = true);
-
     try {
       final userId = context.read<AuthProvider>().currentUser!.uid;
       String? photoURL;
-
       if (_selectedImage != null) {
-        photoURL =
-        await _storageService.uploadLostItemImage(_selectedImage!);
+        photoURL = await _storageService.uploadLostItemImage(_selectedImage!);
       }
 
       await _firestoreService.reportLostItem(
@@ -133,15 +146,15 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
         secretIdentificationDetail: _secretDetailCtrl.text.trim(),
         possibleLocations: _locations,
         photoURL: photoURL,
-        description: _descriptionCtrl.text.trim().isNotEmpty
-            ? _descriptionCtrl.text.trim()
-            : null,
+        description: _descriptionCtrl.text.trim().isEmpty
+            ? null
+            : _descriptionCtrl.text.trim(),
         category: _selectedCategory,
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Lost item reported successfully!'),
+        content: Text('Lost item reported successfully'),
         backgroundColor: AppTheme.success,
         behavior: SnackBarBehavior.floating,
       ));
@@ -149,7 +162,7 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: ${e.toString()}'),
+        content: Text('Error: $e'),
         backgroundColor: AppTheme.error,
         behavior: SnackBarBehavior.floating,
       ));
@@ -161,247 +174,144 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Report Lost Item'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFEBEE),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.search_off, color: Colors.red, size: 14),
-                SizedBox(width: 4),
-                Text('LOST',
-                    style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700)),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(gradient: AppTheme.softGradient),
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: ReportFormHeader(
+                      title: 'Report lost item',
+                      subtitle: 'Add strong details so verifiers can confirm ownership faster.',
+                      badgeLabel: 'Lost report',
+                      badgeColor: AppTheme.error,
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.all(20),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      ReportUploadCard(
+                        title: 'Item photo',
+                        subtitle: 'Optional, but helpful for faster matching.',
+                        icon: Icons.add_photo_alternate_outlined,
+                        imageFile: _selectedImage,
+                        accent: AppTheme.error,
+                        onTap: _pickImage,
+                      ),
+                      const SizedBox(height: 18),
+                      ReportSectionCard(
+                        title: 'Item details',
+                        child: Column(
+                          children: [
+                            AppTextField(
+                              hint: 'Item name',
+                              controller: _itemNameCtrl,
+                              prefixIcon: Icons.inventory_2_outlined,
+                              validator: (value) =>
+                                  value == null || value.isEmpty ? 'Item name is required' : null,
+                            ),
+                            const SizedBox(height: 14),
+                            DropdownButtonFormField<String>(
+                              value: _selectedCategory,
+                              decoration: const InputDecoration(
+                                hintText: 'Category',
+                                prefixIcon: Icon(Icons.category_outlined),
+                              ),
+                              items: _categories
+                                  .map((category) =>
+                                      DropdownMenuItem(value: category, child: Text(category)))
+                                  .toList(),
+                              onChanged: (value) => setState(() => _selectedCategory = value),
+                            ),
+                            const SizedBox(height: 14),
+                            AppTextField(
+                              hint: 'Description',
+                              controller: _descriptionCtrl,
+                              prefixIcon: Icons.notes_rounded,
+                              maxLines: 3,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      ReportSectionCard(
+                        title: 'Verification detail',
+                        subtitle:
+                            'This stays confidential and helps confirm the real owner later.',
+                        child: AppTextField(
+                          hint: 'Example: serial number, sticker, handwritten mark',
+                          controller: _secretDetailCtrl,
+                          prefixIcon: Icons.lock_outline_rounded,
+                          maxLines: 2,
+                          validator: (value) => value == null || value.isEmpty
+                              ? 'Secret detail is required'
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      ReportSectionCard(
+                        title: 'Possible locations',
+                        subtitle: 'Add a few places where you may have left the item.',
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: AppTextField(
+                                    hint: 'Library, canteen, classroom, lab',
+                                    controller: _locationCtrl,
+                                    prefixIcon: Icons.location_on_outlined,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                IconButton.filled(
+                                  onPressed: _addLocation,
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: AppTheme.primary,
+                                    fixedSize: const Size(52, 52),
+                                  ),
+                                  icon: const Icon(Icons.add_rounded),
+                                ),
+                              ],
+                            ),
+                            if (_locations.isNotEmpty) ...[
+                              const SizedBox(height: 14),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _locations.map((location) {
+                                  return Chip(
+                                    label: Text(location),
+                                    onDeleted: () => setState(() => _locations.remove(location)),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      AppButton(
+                        text: 'Submit lost report',
+                        onPressed: _submit,
+                        isLoading: _isSubmitting,
+                        icon: Icons.send_rounded,
+                      ),
+                      const SizedBox(height: 24),
+                    ]),
+                  ),
+                ),
               ],
             ),
           ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Photo Upload
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 160,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-                    border: Border.all(
-                        color: AppTheme.primary.withOpacity(0.3),
-                        style: BorderStyle.solid),
-                    boxShadow: AppTheme.cardShadow,
-                  ),
-                  child: _selectedImage != null
-                      ? ClipRRect(
-                    borderRadius:
-                    BorderRadius.circular(AppTheme.cardRadius),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.file(_selectedImage!, fit: BoxFit.cover),
-                        Positioned(
-                          bottom: 8,
-                          right: 8,
-                          child: GestureDetector(
-                            onTap: _pickImage,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.edit,
-                                  color: Colors.white, size: 16),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                      : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_photo_alternate_outlined,
-                          size: 40,
-                          color: AppTheme.primary.withOpacity(0.6)),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Add Photo (Optional)',
-                        style: TextStyle(
-                          color: AppTheme.primary.withOpacity(0.7),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Tap to upload from camera or gallery',
-                        style: TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              _sectionLabel('Item Details'),
-              const SizedBox(height: 12),
-
-              AppTextField(
-                hint: 'Item Name *',
-                controller: _itemNameCtrl,
-                prefixIcon: Icons.inventory_2_outlined,
-                validator: (v) =>
-                v == null || v.isEmpty ? 'Item name is required' : null,
-              ),
-              const SizedBox(height: 14),
-
-              // Category
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                decoration: InputDecoration(
-                  hintText: 'Category',
-                  prefixIcon: const Icon(Icons.category_outlined,
-                      color: AppTheme.textSecondary, size: 20),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.inputRadius),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.inputRadius),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                ),
-                items: _categories
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedCategory = v),
-              ),
-              const SizedBox(height: 14),
-
-              AppTextField(
-                hint: 'Description (optional)',
-                controller: _descriptionCtrl,
-                prefixIcon: Icons.description_outlined,
-                maxLines: 3,
-              ),
-              const SizedBox(height: 20),
-
-              _sectionLabel('🔒 Secret Identification Detail'),
-              const SizedBox(height: 4),
-              Text(
-                'This is kept confidential and used to verify the true owner.',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary.withOpacity(0.8)),
-              ),
-              const SizedBox(height: 10),
-              AppTextField(
-                hint: 'e.g. Sticker on back, serial number, name written inside...',
-                controller: _secretDetailCtrl,
-                prefixIcon: Icons.lock_outline_rounded,
-                maxLines: 2,
-                validator: (v) => v == null || v.isEmpty
-                    ? 'Secret detail is required'
-                    : null,
-              ),
-              const SizedBox(height: 20),
-
-              _sectionLabel('📍 Possible Locations'),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppTextField(
-                      hint: 'e.g. Library, Canteen, Lab 3...',
-                      controller: _locationCtrl,
-                      prefixIcon: Icons.location_on_outlined,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: _addLocation,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius:
-                        BorderRadius.circular(AppTheme.inputRadius),
-                      ),
-                      child: const Icon(Icons.add, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              if (_locations.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _locations
-                      .map((loc) => Chip(
-                    label: Text(loc),
-                    deleteIcon: const Icon(Icons.close, size: 14),
-                    onDeleted: () =>
-                        setState(() => _locations.remove(loc)),
-                    backgroundColor:
-                    AppTheme.primary.withOpacity(0.1),
-                    labelStyle: const TextStyle(
-                      color: AppTheme.primary,
-                      fontSize: 12,
-                    ),
-                    side: BorderSide.none,
-                  ))
-                      .toList(),
-                ),
-              const SizedBox(height: 32),
-              AppButton(
-                text: 'Submit Lost Report',
-                onPressed: _submit,
-                isLoading: _isSubmitting,
-                icon: Icons.send_rounded,
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
         ),
-      ),
-    );
-  }
-
-  Widget _sectionLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-        color: AppTheme.textPrimary,
       ),
     );
   }

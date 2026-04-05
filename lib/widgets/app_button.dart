@@ -42,19 +42,9 @@ class AppButton extends StatelessWidget {
       )
           : Container(
         decoration: BoxDecoration(
-          gradient: isLoading || onPressed == null
-              ? null
-              : LinearGradient(
-            colors: [
-              buttonColor,
-              buttonColor.withOpacity(0.8),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
           color: isLoading || onPressed == null
               ? Colors.grey.shade300
-              : null,
+              : buttonColor,
           borderRadius: BorderRadius.circular(AppTheme.buttonRadius),
           boxShadow: isLoading || onPressed == null
               ? []
