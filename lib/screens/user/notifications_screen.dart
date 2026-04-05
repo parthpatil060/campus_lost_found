@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
+
+import '../../models/notification_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
-import '../../models/notification_model.dart';
 import '../../utils/app_theme.dart';
 
 class NotificationsScreen extends StatelessWidget {
@@ -15,175 +16,209 @@ class NotificationsScreen extends StatelessWidget {
     final fs = FirestoreService();
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => fs.markAllNotificationsRead(uid),
-            child: const Text('Mark all read',
-                style: TextStyle(color: AppTheme.primary, fontSize: 12)),
-          ),
-        ],
-      ),
-      body: StreamBuilder<List<NotificationModel>>(
-        stream: fs.getNotificationsForUser(uid),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final notifications = snapshot.data ?? [];
-          if (notifications.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('🔔', style: TextStyle(fontSize: 52)),
-                  SizedBox(height: 16),
-                  Text('No notifications yet',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary)),
-                  SizedBox(height: 8),
-                  Text('You\'ll be notified when your item is matched.',
-                      style: TextStyle(
-                          fontSize: 13, color: AppTheme.textSecondary),
-                      textAlign: TextAlign.center),
-                ],
+      body: DecoratedBox(
+        decoration: const BoxDecoration(gradient: AppTheme.softGradient),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        fixedSize: const Size(50, 50),
+                      ),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Notifications', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                          Text(
+                            'Stay updated on verification progress and new matches.',
+                            style: TextStyle(color: AppTheme.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => fs.markAllNotificationsRead(uid),
+                      child: const Text('Mark all read'),
+                    ),
+                  ],
+                ),
               ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: notifications.length,
-            itemBuilder: (_, i) {
-              final n = notifications[i];
-              return _NotificationTile(
-                notification: n,
-                onTap: () => fs.markNotificationRead(n.id),
-              );
-            },
-          );
-        },
+              Expanded(
+                child: StreamBuilder<List<NotificationModel>>(
+                  stream: fs.getNotificationsForUser(uid),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final notifications = snapshot.data!;
+                    if (notifications.isEmpty) {
+                      return const _EmptyNotifications();
+                    }
+                    return ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                      itemCount: notifications.length,
+                      itemBuilder: (context, index) {
+                        final notification = notifications[index];
+                        return _NotificationCard(
+                          notification: notification,
+                          onTap: () => fs.markNotificationRead(notification.id),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _NotificationTile extends StatelessWidget {
+class _NotificationCard extends StatelessWidget {
   final NotificationModel notification;
   final VoidCallback onTap;
 
-  const _NotificationTile(
-      {required this.notification, required this.onTap});
+  const _NotificationCard({
+    required this.notification,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isUnread = !notification.isRead;
+    final (icon, color) = switch (notification.type) {
+      'match_approved' => (Icons.verified_rounded, AppTheme.success),
+      'new_found_item' => (Icons.search_rounded, AppTheme.primary),
+      _ => (Icons.notifications_active_outlined, AppTheme.warning),
+    };
 
-    String emoji;
-    Color accent;
-    switch (notification.type) {
-      case 'match_approved':
-        emoji = '🎉';
-        accent = AppTheme.success;
-        break;
-      case 'new_found_item':
-        emoji = '🔍';
-        accent = AppTheme.primary;
-        break;
-      default:
-        emoji = '🔔';
-        accent = AppTheme.accent;
-    }
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isUnread
-              ? AppTheme.primary.withOpacity(0.04)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-          border: isUnread
-              ? Border.all(color: AppTheme.primary.withOpacity(0.15))
-              : null,
-          boxShadow: AppTheme.cardShadow,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(26),
+        child: Ink(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: isUnread ? AppTheme.primary.withOpacity(0.22) : AppTheme.border,
+            ),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification.title,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (isUnread)
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: AppTheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      notification.body,
+                      style: const TextStyle(color: AppTheme.textSecondary, height: 1.5),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      timeago.format(notification.createdAt),
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: accent.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(14),
+      ),
+    );
+  }
+}
+
+class _EmptyNotifications extends StatelessWidget {
+  const _EmptyNotifications();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Container(
+          padding: const EdgeInsets.all(30),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: AppTheme.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: AppTheme.canvas,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: const Icon(Icons.notifications_none_rounded, color: AppTheme.primary, size: 30),
               ),
-              child: Center(
-                  child: Text(emoji, style: const TextStyle(fontSize: 22))),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          notification.title,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: isUnread
-                                ? FontWeight.w700
-                                : FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                      ),
-                      if (isUnread)
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.primary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    notification.body,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    timeago.format(notification.createdAt),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textSecondary.withOpacity(0.7),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 18),
+              const Text(
+                'No notifications yet',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              const Text(
+                'This space will update when verifiers review reports or new matches are available.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppTheme.textSecondary, height: 1.5),
+              ),
+            ],
+          ),
         ),
       ),
     );

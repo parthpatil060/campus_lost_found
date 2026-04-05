@@ -1,10 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+
+import '../../models/found_item_model.dart';
+import '../../models/lost_item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
-import '../../models/lost_item_model.dart';
-import '../../models/found_item_model.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/app_button.dart';
 
@@ -12,26 +13,21 @@ class ItemVerificationScreen extends StatefulWidget {
   const ItemVerificationScreen({super.key});
 
   @override
-  State<ItemVerificationScreen> createState() =>
-      _ItemVerificationScreenState();
+  State<ItemVerificationScreen> createState() => _ItemVerificationScreenState();
 }
 
 class _ItemVerificationScreenState extends State<ItemVerificationScreen> {
   final FirestoreService _fs = FirestoreService();
+  final TextEditingController _notesCtrl = TextEditingController();
   bool _isApproving = false;
   LostItemModel? _selectedLost;
   FoundItemModel? _selectedFound;
   List<LostItemModel> _lostItems = [];
   List<FoundItemModel> _foundItems = [];
-  final _notesCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadItems();
-  }
-
-  Future<void> _loadItems() async {
     _fs.getPendingLostItems().listen((items) {
       if (mounted) setState(() => _lostItems = items);
     });
@@ -49,9 +45,8 @@ class _ItemVerificationScreenState extends State<ItemVerificationScreen> {
   Future<void> _approveMatch() async {
     if (_selectedLost == null || _selectedFound == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please select both a lost item and a found item'),
+        content: Text('Select one lost item and one found item first'),
         backgroundColor: AppTheme.error,
-        behavior: SnackBarBehavior.floating,
       ));
       return;
     }
@@ -63,14 +58,12 @@ class _ItemVerificationScreenState extends State<ItemVerificationScreen> {
         lostItemId: _selectedLost!.lostItemId,
         foundItemId: _selectedFound!.foundItemId,
         verifierId: verifierId,
-        notes: _notesCtrl.text.trim().isNotEmpty ? _notesCtrl.text.trim() : null,
+        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       );
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Match approved! Owner has been notified.'),
+        content: Text('Match approved and owner notified'),
         backgroundColor: AppTheme.success,
-        behavior: SnackBarBehavior.floating,
       ));
       Navigator.pop(context);
     } catch (e) {
@@ -78,7 +71,6 @@ class _ItemVerificationScreenState extends State<ItemVerificationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Error: $e'),
         backgroundColor: AppTheme.error,
-        behavior: SnackBarBehavior.floating,
       ));
     } finally {
       if (mounted) setState(() => _isApproving = false);
@@ -88,344 +80,316 @@ class _ItemVerificationScreenState extends State<ItemVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Item Verification'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Instructions card
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8EAFF),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Row(
-                children: [
-                  Text('💡', style: TextStyle(fontSize: 20)),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Select a lost item and a found item, compare details manually, then approve or reject the match.',
-                      style: TextStyle(
-                          fontSize: 12, color: AppTheme.primary),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ─── LOST ITEM SELECTOR ───────────────────────────────────
-            _sectionHeader('😢 Select Lost Item'),
-            const SizedBox(height: 10),
-            if (_lostItems.isEmpty)
-              _emptyChip('No pending lost items')
-            else
-              SizedBox(
-                height: 90,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _lostItems.length,
-                  itemBuilder: (_, i) {
-                    final item = _lostItems[i];
-                    final isSelected = _selectedLost?.lostItemId == item.lostItemId;
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedLost = item),
-                      child: Container(
-                        width: 140,
-                        margin: const EdgeInsets.only(right: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppTheme.primary.withOpacity(0.1)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppTheme.primary
-                                : Colors.grey.shade200,
-                            width: isSelected ? 2 : 1,
-                          ),
-                          boxShadow: isSelected ? AppTheme.buttonShadow : [],
+      body: DecoratedBox(
+        decoration: const BoxDecoration(gradient: AppTheme.softGradient),
+        child: SafeArea(
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          fixedSize: const Size(50, 50),
                         ),
-                        child: Row(
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ClipRRect(
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(11),
-                                bottomLeft: Radius.circular(11),
-                              ),
-                              child: SizedBox(
-                                width: 40,
-                                height: 90,
-                                child: item.photoURL != null
-                                    ? CachedNetworkImage(
-                                    imageUrl: item.photoURL!,
-                                    fit: BoxFit.cover)
-                                    : Container(
-                                    color: const Color(0xFFFFEBEE),
-                                    child: const Center(
-                                        child: Text('😢'))),
-                              ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Text(
-                                  item.itemName,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: isSelected
-                                        ? AppTheme.primary
-                                        : AppTheme.textPrimary,
-                                  ),
-                                  maxLines: 2,
-                                ),
-                              ),
+                            Text('Item verification', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                            Text(
+                              'Compare evidence carefully before approving a match.',
+                              style: TextStyle(color: AppTheme.textSecondary),
                             ),
                           ],
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-
-            const SizedBox(height: 20),
-
-            // ─── FOUND ITEM SELECTOR ──────────────────────────────────
-            _sectionHeader('🎉 Select Found Item'),
-            const SizedBox(height: 10),
-            if (_foundItems.isEmpty)
-              _emptyChip('No pending found items')
-            else
-              SizedBox(
-                height: 90,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _foundItems.length,
-                  itemBuilder: (_, i) {
-                    final item = _foundItems[i];
-                    final isSelected =
-                        _selectedFound?.foundItemId == item.foundItemId;
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedFound = item),
-                      child: Container(
-                        width: 140,
-                        margin: const EdgeInsets.only(right: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF4CAF50).withOpacity(0.1)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFF4CAF50)
-                                : Colors.grey.shade200,
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(11),
-                                bottomLeft: Radius.circular(11),
-                              ),
-                              child: SizedBox(
-                                width: 40,
-                                height: 90,
-                                child: CachedNetworkImage(
-                                    imageUrl: item.photoURL,
-                                    fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => Container(
-                                        color: const Color(0xFFE8F5E9),
-                                        child: const Center(
-                                            child: Text('🎉')))),
-                              ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Text(
-                                  item.description,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: isSelected
-                                        ? const Color(0xFF4CAF50)
-                                        : AppTheme.textPrimary,
-                                  ),
-                                  maxLines: 2,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-            // ─── COMPARISON SIDE-BY-SIDE ──────────────────────────────
-            if (_selectedLost != null && _selectedFound != null) ...[
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 16),
-              _sectionHeader('🔍 Side-by-Side Comparison'),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _DetailCard(
-                    title: 'LOST ITEM',
-                    color: AppTheme.error,
-                    items: {
-                      'Name': _selectedLost!.itemName,
-                      'Category': _selectedLost!.category ?? '—',
-                      'Locations': _selectedLost!.possibleLocations.join(', '),
-                      'Description': _selectedLost!.description ?? '—',
-                    },
-                    imageUrl: _selectedLost!.photoURL,
-                  )),
-                  const SizedBox(width: 10),
-                  Expanded(child: _DetailCard(
-                    title: 'FOUND ITEM',
-                    color: const Color(0xFF4CAF50),
-                    items: {
-                      'Description': _selectedFound!.description,
-                      'Category': _selectedFound!.category ?? '—',
-                      'Found at': _selectedFound!.locationFound,
-                      'Stored at': _selectedFound!.storageOption,
-                    },
-                    imageUrl: _selectedFound!.photoURL,
-                  )),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-              // Secret detail reveal
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF8E1),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.amber.shade300),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Text('🔒', style: TextStyle(fontSize: 16)),
-                        SizedBox(width: 6),
-                        Text('Secret Identification Detail',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                                color: Color(0xFFB45309))),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _selectedLost!.secretIdentificationDetail,
-                      style: const TextStyle(
-                          fontSize: 13, color: AppTheme.textPrimary),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Ask the claimant to describe this detail to verify ownership.',
-                      style: TextStyle(
-                          fontSize: 11, color: Color(0xFFB45309)),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              // Notes field
-              TextField(
-                controller: _notesCtrl,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  hintText: 'Add verification notes (optional)...',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.inputRadius),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.inputRadius),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+                    ],
                   ),
                 ),
               ),
-
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      text: 'Reject',
-                      onPressed: () => Navigator.pop(context),
-                      isOutlined: true,
+              SliverPadding(
+                padding: const EdgeInsets.all(20),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _InfoCard(
+                      title: 'Review checklist',
+                      subtitle:
+                          'Confirm description, category, location, and the confidential identifier before approving.',
+                    ),
+                    const SizedBox(height: 18),
+                    _PickerSection<LostItemModel>(
+                      title: 'Select lost item',
+                      items: _lostItems,
+                      selected: _selectedLost,
+                      titleBuilder: (item) => item.itemName,
+                      imageBuilder: (item) => item.photoURL,
+                      fallbackIcon: Icons.search_off_rounded,
                       color: AppTheme.error,
+                      onSelect: (item) => setState(() => _selectedLost = item),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: AppButton(
-                      text: 'Approve Match',
-                      onPressed: _approveMatch,
-                      isLoading: _isApproving,
+                    const SizedBox(height: 18),
+                    _PickerSection<FoundItemModel>(
+                      title: 'Select found item',
+                      items: _foundItems,
+                      selected: _selectedFound,
+                      titleBuilder: (item) => item.description,
+                      imageBuilder: (item) => item.photoURL,
+                      fallbackIcon: Icons.inventory_2_rounded,
                       color: AppTheme.success,
-                      icon: Icons.check_circle_outline_rounded,
+                      onSelect: (item) => setState(() => _selectedFound = item),
                     ),
-                  ),
-                ],
+                    if (_selectedLost != null && _selectedFound != null) ...[
+                      const SizedBox(height: 18),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _DetailCard(
+                              title: 'Lost report',
+                              color: AppTheme.error,
+                              imageUrl: _selectedLost!.photoURL,
+                              details: {
+                                'Name': _selectedLost!.itemName,
+                                'Category': _selectedLost!.category ?? 'Not provided',
+                                'Locations': _selectedLost!.possibleLocations.join(', '),
+                                'Description': _selectedLost!.description ?? 'Not provided',
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _DetailCard(
+                              title: 'Found report',
+                              color: AppTheme.success,
+                              imageUrl: _selectedFound!.photoURL,
+                              details: {
+                                'Description': _selectedFound!.description,
+                                'Category': _selectedFound!.category ?? 'Not provided',
+                                'Found at': _selectedFound!.locationFound,
+                                'Stored at': _selectedFound!.storageOption,
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      _SecretCard(secret: _selectedLost!.secretIdentificationDetail),
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(color: AppTheme.border),
+                          boxShadow: AppTheme.cardShadow,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Verification notes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _notesCtrl,
+                              maxLines: 3,
+                              decoration: const InputDecoration(
+                                hintText: 'Optional notes for the verification record',
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: AppButton(
+                                    text: 'Cancel',
+                                    onPressed: () => Navigator.pop(context),
+                                    isOutlined: true,
+                                    color: AppTheme.error,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: AppButton(
+                                    text: 'Approve match',
+                                    onPressed: _approveMatch,
+                                    isLoading: _isApproving,
+                                    color: AppTheme.success,
+                                    icon: Icons.check_circle_outline_rounded,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                  ]),
+                ),
               ),
             ],
-
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _sectionHeader(String text) {
-    return Text(text,
-        style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary));
-  }
+class _InfoCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
 
-  Widget _emptyChip(String text) {
+  const _InfoCard({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: AppTheme.cardShadow,
       ),
-      child: Text(text,
-          style: const TextStyle(
-              fontSize: 12, color: AppTheme.textSecondary)),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(Icons.fact_check_outlined, color: AppTheme.primary),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                Text(subtitle, style: const TextStyle(color: AppTheme.textSecondary, height: 1.5)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PickerSection<T> extends StatelessWidget {
+  final String title;
+  final List<T> items;
+  final T? selected;
+  final String? Function(T) imageBuilder;
+  final String Function(T) titleBuilder;
+  final IconData fallbackIcon;
+  final Color color;
+  final ValueChanged<T> onSelect;
+
+  const _PickerSection({
+    required this.title,
+    required this.items,
+    required this.selected,
+    required this.imageBuilder,
+    required this.titleBuilder,
+    required this.fallbackIcon,
+    required this.color,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 12),
+        if (items.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: const Text('No pending records available', style: TextStyle(color: AppTheme.textSecondary)),
+          )
+        else
+          SizedBox(
+            height: 124,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                final isSelected = identical(item, selected);
+                final imageUrl = imageBuilder(item);
+                return GestureDetector(
+                  onTap: () => onSelect(item),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 180,
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: isSelected ? color : AppTheme.border,
+                        width: isSelected ? 1.8 : 1,
+                      ),
+                      boxShadow: AppTheme.cardShadow,
+                    ),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(24),
+                            bottomLeft: Radius.circular(24),
+                          ),
+                          child: SizedBox(
+                            width: 64,
+                            height: 124,
+                            child: imageUrl == null
+                                ? Container(
+                                    color: color.withOpacity(0.12),
+                                    child: Icon(fallbackIcon, color: color),
+                                  )
+                                : CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Text(
+                              titleBuilder(item),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                color: isSelected ? color : AppTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 }
@@ -433,84 +397,129 @@ class _ItemVerificationScreenState extends State<ItemVerificationScreen> {
 class _DetailCard extends StatelessWidget {
   final String title;
   final Color color;
-  final Map<String, String> items;
   final String? imageUrl;
+  final Map<String, String> details;
 
-  const _DetailCard(
-      {required this.title,
-        required this.color,
-        required this.items,
-        this.imageUrl});
+  const _DetailCard({
+    required this.title,
+    required this.color,
+    required this.imageUrl,
+    required this.details,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: color.withOpacity(0.22)),
         boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
         children: [
           if (imageUrl != null)
             ClipRRect(
-              borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(13)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               child: CachedNetworkImage(
                 imageUrl: imageUrl!,
-                height: 100,
                 width: double.infinity,
+                height: 140,
                 fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => Container(
-                    height: 100,
-                    color: color.withOpacity(0.1),
-                    child: Center(
-                        child: Icon(Icons.image_outlined,
-                            color: color))),
               ),
             ),
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 6),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius: imageUrl == null
-                  ? const BorderRadius.vertical(top: Radius.circular(13))
-                  : BorderRadius.zero,
+                  ? const BorderRadius.vertical(top: Radius.circular(28))
+                  : null,
             ),
-            child: Center(
-              child: Text(title,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: color)),
-            ),
+            child: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
           ),
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(16),
             child: Column(
-              children: items.entries
-                  .map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${e.key}: ',
-                        style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textSecondary)),
-                    Expanded(
-                      child: Text(e.value,
+              children: details.entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 86,
+                        child: Text(
+                          entry.key,
                           style: const TextStyle(
-                              fontSize: 10,
-                              color: AppTheme.textPrimary)),
-                    ),
-                  ],
-                ),
-              ))
-                  .toList(),
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          entry.value,
+                          style: const TextStyle(color: AppTheme.textPrimary, height: 1.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecretCard extends StatelessWidget {
+  final String secret;
+
+  const _SecretCard({required this.secret});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.warning.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.lock_outline_rounded, color: AppTheme.warning),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Confidential owner identifier',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(secret, style: const TextStyle(color: AppTheme.textPrimary, height: 1.5)),
+          const SizedBox(height: 8),
+          const Text(
+            'Use this only during verification to confirm the claimant knows the private identifying detail.',
+            style: TextStyle(color: AppTheme.textSecondary, height: 1.5),
           ),
         ],
       ),
