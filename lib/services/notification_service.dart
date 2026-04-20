@@ -35,9 +35,9 @@ class NotificationService {
     String? payload,
   }) async {
     const androidDetails = AndroidNotificationDetails(
-      'campus_lost_found_channel',
-      'Campus Lost & Found',
-      channelDescription: 'Notifications for lost and found item updates',
+      'campus_retrieve_channel',
+      'CampusRetrieve',
+      channelDescription: 'Notifications for campus item updates',
       importance: Importance.high,
       priority: Priority.high,
       color: AppTheme.primary,

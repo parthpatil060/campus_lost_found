@@ -52,3 +52,6 @@ ios/Pods/
 android/.gradle/
 android/app/build/
 lib/firebase_options.dart
+lib/utils/constants.dart
+
+

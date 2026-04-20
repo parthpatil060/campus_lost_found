@@ -145,12 +145,12 @@ class _SplashScreenState extends State<SplashScreen>
 
                     // App title
                     const Text(
-                      'Campus Lost & Found',
+                      'CampusRetrieve',
                       style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
-                        letterSpacing: 0.5,
+                        letterSpacing: -1,
                         shadows: [
                           Shadow(
                             color: Colors.black38,

@@ -2,79 +2,83 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Helper Functions ──────────────────────────────────────────────────────
-    function isSignedIn() {
-      return request.auth != null;
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function currentUserPath() {
+      return /databases/$(database)/documents/users/$(uid());
     }
-
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function hasUserProfile() {
+      return isSignedIn() && exists(currentUserPath());
     }
-
+    function userRole() {
+      return hasUserProfile() ? get(currentUserPath()).data.role : '';
+    }
     function isAdmin() {
-      return isSignedIn() && getUserRole() == 'admin';
+      return isSignedIn() && userRole() == 'admin';
     }
-
     function isVerifier() {
-      return isSignedIn() && (getUserRole() == 'verifier' || isAdmin());
+      return isSignedIn() &&
+        (userRole() == 'verifier' || userRole() == 'admin');
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // ── Users ─────────────────────────────────────────────────────────────────
+    // ── users ─────────────────────────────────────────────────────────────────
     match /users/{userId} {
-      // Users can read/write their own doc; admin can read/write all
-      allow read: if isOwner(userId) || isVerifier();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
+      allow read: if isSignedIn() && (uid() == userId || isVerifier());
+      allow create: if isSignedIn() && uid() == userId;
+      allow update: if isSignedIn() && (uid() == userId || isAdmin());
       allow delete: if isAdmin();
     }
 
-    // ── Lost Items ────────────────────────────────────────────────────────────
+    // ── lost_items ────────────────────────────────────────────────────────────
     match /lost_items/{itemId} {
-      // Any signed-in user can create
-      allow create: if isSignedIn();
-      // Owner and verifiers can read
-      allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || isVerifier()
-      );
-      // Verifiers can update status; owners can update their own
-      allow update: if isVerifier() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
-      allow delete: if isAdmin();
-    }
-
-    // ── Found Items ───────────────────────────────────────────────────────────
-    match /found_items/{itemId} {
-      allow create: if isSignedIn();
-      allow read: if isSignedIn() && (
-        resource.data.finderId == request.auth.uid || isVerifier()
-      );
-      allow update: if isVerifier() || (
-        isSignedIn() && resource.data.finderId == request.auth.uid
-      );
-      allow delete: if isAdmin();
-    }
-
-    // ── Matches ───────────────────────────────────────────────────────────────
-    match /matches/{matchId} {
-      allow create: if isVerifier();
       allow read: if isSignedIn();
-      allow update: if isVerifier();
+      allow create: if isSignedIn();
+      // only owner or verifier/admin can update status
+      allow update: if isSignedIn() && (
+        resource.data.userId == uid() || isVerifier()
+      );
       allow delete: if isAdmin();
     }
 
-    // ── Notifications ─────────────────────────────────────────────────────────
-    match /notifications/{notifId} {
-      // Users can read/update their own notifications
-      allow read, update: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || isVerifier()
-      );
-      // Any signed-in user can create notifications (needed for found item reports notifying verifiers)
+    // ── found_items ───────────────────────────────────────────────────────────
+    match /found_items/{itemId} {
+      allow read: if isSignedIn();
       allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        resource.data.finderId == uid() || isVerifier()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── matches ───────────────────────────────────────────────────────────────
+    match /matches/{matchId} {
+      allow read: if isSignedIn();
+      allow create, update: if isVerifier();
+      allow delete: if isAdmin();
+    }
+
+    // ── notifications ─────────────────────────────────────────────────────────
+    match /notifications/{notifId} {
+      // user can only read their own; verifiers can create for others
+      allow read: if isSignedIn() &&
+        (resource.data.userId == uid() || isVerifier());
+      allow create: if isSignedIn() &&
+        (request.resource.data.userId == uid() || isVerifier());
+      allow update: if isSignedIn() &&
+        (resource.data.userId == uid() || isVerifier());
+      allow delete: if isAdmin();
+    }
+
+    // ── broadcasts ────────────────────────────────────────────────────────────
+    match /broadcasts/{broadcastId} {
+      allow read: if isSignedIn();
+      allow create: if isVerifier();
+      // users can update readBy (arrayUnion); verifiers can deactivate
+      allow update: if isSignedIn() && (
+        isVerifier() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy'])
+      );
       allow delete: if isAdmin();
     }
   }

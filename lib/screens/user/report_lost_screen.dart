@@ -98,9 +98,10 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
     }
     if (!_speechReady) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Voice input is not available on this device right now'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Voice input unavailable'),
         backgroundColor: AppTheme.error,
+        behavior: SnackBarBehavior.floating,
       ));
       return;
     }
@@ -152,7 +153,7 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
   Widget _voiceSuffix(TextEditingController controller, String fieldName) {
     final isActive = _isListening && _activeVoiceField == fieldName;
     return IconButton(
-      tooltip: isActive ? 'Stop voice input' : 'Start voice input',
+      tooltip: isActive ? 'Stop' : 'Voice Input',
       icon: Icon(
         isActive ? Icons.mic_rounded : Icons.mic_none_rounded,
         color: isActive ? AppTheme.accent : AppTheme.textSecondary,
@@ -164,55 +165,52 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
   Future<void> _pickImage() async {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Upload photo',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppTheme.border.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(99),
               ),
-              const SizedBox(height: 14),
-              ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                tileColor: AppTheme.canvas,
-                leading: const Icon(Icons.camera_alt_outlined),
-                title: const Text('Camera'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final image = await _picker.pickImage(
-                    source: ImageSource.camera,
-                    imageQuality: 70,
-                  );
-                  if (image != null) setState(() => _selectedImage = File(image.path));
-                },
-              ),
-              const SizedBox(height: 10),
-              ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                tileColor: AppTheme.canvas,
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Gallery'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final image = await _picker.pickImage(
-                    source: ImageSource.gallery,
-                    imageQuality: 70,
-                  );
-                  if (image != null) setState(() => _selectedImage = File(image.path));
-                },
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Upload Item Photo',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 20),
+            _ImagePickTile(
+              label: 'Take Photo',
+              icon: Icons.camera_alt_rounded,
+              color: AppTheme.primary,
+              onTap: () async {
+                Navigator.pop(context);
+                final image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+                if (image != null) setState(() => _selectedImage = File(image.path));
+              },
+            ),
+            const SizedBox(height: 12),
+            _ImagePickTile(
+              label: 'Choose from Gallery',
+              icon: Icons.photo_library_rounded,
+              color: AppTheme.primary,
+              onTap: () async {
+                Navigator.pop(context);
+                final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+                if (image != null) setState(() => _selectedImage = File(image.path));
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -230,8 +228,8 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_locations.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Add at least one possible location'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Add at least one possible location'),
         backgroundColor: AppTheme.error,
         behavior: SnackBarBehavior.floating,
       ));
@@ -259,8 +257,8 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Lost item reported successfully'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Item reported successfully'),
         backgroundColor: AppTheme.success,
         behavior: SnackBarBehavior.floating,
       ));
@@ -280,56 +278,66 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: AppTheme.softGradient),
-        child: SafeArea(
-          child: Form(
-            key: _formKey,
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: ReportFormHeader(
-                      title: 'Report lost item',
-                      subtitle: 'Add strong details so verifiers can confirm ownership faster.',
-                      badgeLabel: 'Lost report',
-                      badgeColor: AppTheme.error,
-                    ),
+      backgroundColor: AppTheme.background,
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: ReportFormHeader(
+                    title: 'Report Lost Item',
+                    subtitle: 'Help verifiers find your item by providing precise details.',
+                    badgeLabel: 'Lost Report',
+                    badgeColor: AppTheme.error,
                   ),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.all(20),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      ReportUploadCard(
-                        title: 'Item photo',
-                        subtitle: 'Optional, but helpful for faster matching.',
-                        icon: Icons.add_photo_alternate_outlined,
-                        imageFile: _selectedImage,
-                        accent: AppTheme.error,
-                        onTap: _pickImage,
-                      ),
-                      const SizedBox(height: 18),
-                      ReportSectionCard(
-                        title: 'Item details',
-                        child: Column(
-                          children: [
-                            AppTextField(
-                              hint: 'Item name',
-                              controller: _itemNameCtrl,
-                              prefixIcon: Icons.inventory_2_outlined,
-                              suffix: _voiceSuffix(_itemNameCtrl, 'item_name'),
-                              validator: (value) =>
-                                  value == null || value.isEmpty ? 'Item name is required' : null,
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 32, 20, 40),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    ReportUploadCard(
+                      title: 'Item Snapshot',
+                      subtitle: 'Highly recommended for faster matches.',
+                      icon: Icons.add_photo_alternate_rounded,
+                      imageFile: _selectedImage,
+                      accent: AppTheme.error,
+                      onTap: _pickImage,
+                    ),
+                    const SizedBox(height: 24),
+                    ReportSectionCard(
+                      title: 'Key Information',
+                      child: Column(
+                        children: [
+                          AppTextField(
+                            hint: 'What did you lose?',
+                            controller: _itemNameCtrl,
+                            prefixIcon: Icons.inventory_2_rounded,
+                            suffix: _voiceSuffix(_itemNameCtrl, 'item_name'),
+                            validator: (value) =>
+                                value == null || value.isEmpty ? 'Item name required' : null,
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: AppTheme.border.withOpacity(0.5)),
                             ),
-                            const SizedBox(height: 14),
-                            DropdownButtonFormField<String>(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: DropdownButtonFormField<String>(
                               value: _selectedCategory,
+                              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.textSecondary),
                               decoration: const InputDecoration(
-                                hintText: 'Category',
-                                prefixIcon: Icon(Icons.category_outlined),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                prefixIcon: Icon(Icons.category_rounded, size: 22),
+                                hintText: 'Select Category',
                               ),
                               items: _categories
                                   .map((category) =>
@@ -337,92 +345,120 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
                                   .toList(),
                               onChanged: (value) => setState(() => _selectedCategory = value),
                             ),
-                            const SizedBox(height: 14),
-                            AppTextField(
-                              hint: 'Description',
-                              controller: _descriptionCtrl,
-                              prefixIcon: Icons.notes_rounded,
-                              suffix: _voiceSuffix(_descriptionCtrl, 'description'),
-                              maxLines: 3,
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 16),
+                          AppTextField(
+                            hint: 'Additional description (color, brand...)',
+                            controller: _descriptionCtrl,
+                            prefixIcon: Icons.description_rounded,
+                            suffix: _voiceSuffix(_descriptionCtrl, 'description'),
+                            maxLines: 3,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 18),
-                      ReportSectionCard(
-                        title: 'Verification detail',
-                        subtitle:
-                            'This stays confidential and helps confirm the real owner later.',
-                        child: AppTextField(
-                          hint: 'Example: serial number, sticker, handwritten mark',
-                          controller: _secretDetailCtrl,
-                          prefixIcon: Icons.lock_outline_rounded,
-                          suffix: _voiceSuffix(_secretDetailCtrl, 'secret_detail'),
-                          maxLines: 2,
-                          validator: (value) => value == null || value.isEmpty
-                              ? 'Secret detail is required'
-                              : null,
-                        ),
+                    ),
+                    const SizedBox(height: 24),
+                    ReportSectionCard(
+                      title: 'Ownership Proof',
+                      subtitle: 'Confidential details only you know (marks, serials, stickers).',
+                      child: AppTextField(
+                        hint: 'Example: Green sticker on back, Cracked screen top left',
+                        controller: _secretDetailCtrl,
+                        prefixIcon: Icons.verified_user_rounded,
+                        suffix: _voiceSuffix(_secretDetailCtrl, 'secret_detail'),
+                        maxLines: 2,
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Secret detail required'
+                            : null,
                       ),
-                      const SizedBox(height: 18),
-                      ReportSectionCard(
-                        title: 'Possible locations',
-                        subtitle: 'Add a few places where you may have left the item.',
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: AppTextField(
-                                    hint: 'Library, canteen, classroom, lab',
-                                    controller: _locationCtrl,
-                                    prefixIcon: Icons.location_on_outlined,
-                                    suffix: _voiceSuffix(_locationCtrl, 'location'),
-                                  ),
+                    ),
+                    const SizedBox(height: 24),
+                    ReportSectionCard(
+                      title: 'Last Seen Locations',
+                      subtitle: 'Add campus areas where you may have lost the item.',
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: AppTextField(
+                                  hint: 'Library, Lab 4, Canteen...',
+                                  controller: _locationCtrl,
+                                  prefixIcon: Icons.my_location_rounded,
+                                  suffix: _voiceSuffix(_locationCtrl, 'location'),
                                 ),
-                                const SizedBox(width: 10),
-                                IconButton.filled(
-                                  onPressed: _addLocation,
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: AppTheme.primary,
-                                    fixedSize: const Size(52, 52),
-                                  ),
-                                  icon: const Icon(Icons.add_rounded),
+                              ),
+                              const SizedBox(width: 12),
+                              IconButton.filled(
+                                onPressed: _addLocation,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: AppTheme.primary,
+                                  fixedSize: const Size(54, 54),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                                 ),
-                              ],
-                            ),
-                            if (_locations.isNotEmpty) ...[
-                              const SizedBox(height: 14),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: _locations.map((location) {
-                                  return Chip(
-                                    label: Text(location),
-                                    onDeleted: () => setState(() => _locations.remove(location)),
-                                  );
-                                }).toList(),
+                                icon: const Icon(Icons.add_rounded),
                               ),
                             ],
+                          ),
+                          if (_locations.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _locations.map((location) {
+                                return Chip(
+                                  label: Text(location, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                                  onDeleted: () => setState(() => _locations.remove(location)),
+                                  deleteIcon: const Icon(Icons.close_rounded, size: 14),
+                                );
+                              }).toList(),
+                            ),
                           ],
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 22),
-                      AppButton(
-                        text: 'Submit lost report',
-                        onPressed: _submit,
-                        isLoading: _isSubmitting,
-                        icon: Icons.send_rounded,
-                      ),
-                      const SizedBox(height: 24),
-                    ]),
-                  ),
+                    ),
+                    const SizedBox(height: 32),
+                    AppButton(
+                      text: 'Confirm & Report',
+                      onPressed: _submit,
+                      isLoading: _isSubmitting,
+                      icon: Icons.check_circle_rounded,
+                    ),
+                  ]),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ImagePickTile extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ImagePickTile({required this.label, required this.icon, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+      trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      tileColor: AppTheme.background,
     );
   }
 }

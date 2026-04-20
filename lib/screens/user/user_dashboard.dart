@@ -8,6 +8,11 @@ import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/app_theme.dart';
 
+// ── BROADCAST FEATURE START ──
+import '../../models/broadcast_model.dart';
+import '../../widgets/broadcast_card.dart';
+// ── BROADCAST FEATURE END ──
+
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
 
@@ -27,9 +32,9 @@ class _UserDashboardState extends State<UserDashboard>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 800),
     )..forward();
-    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart);
   }
 
   @override
@@ -42,12 +47,12 @@ class _UserDashboardState extends State<UserDashboard>
     return showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
         content: Text(body),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text('Got it'),
           ),
         ],
       ),
@@ -57,60 +62,63 @@ class _UserDashboardState extends State<UserDashboard>
   void _showCreateSheet() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
               child: Container(
-                width: 56,
+                width: 48,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: AppTheme.border,
-                  borderRadius: BorderRadius.circular(999),
+                  color: AppTheme.border.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(99),
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 24),
             const Text(
-              'Create a new report',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              'Submit a Report',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.5),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             const Text(
-              'Choose the type of report you want to submit.',
+              'Help your fellow students by providing accurate details.',
               style: TextStyle(color: AppTheme.textSecondary),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 28),
             Row(
               children: [
                 Expanded(
                   child: _CreateOptionCard(
-                    title: 'Report Lost',
-                    subtitle: 'Track a missing item',
+                    title: 'Lost Item',
+                    subtitle: 'Track something missing',
                     icon: Icons.search_off_rounded,
                     color: AppTheme.error,
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(this.context, '/report-lost');
+                      Navigator.pushNamed(context, '/report-lost');
                     },
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: _CreateOptionCard(
-                    title: 'Report Found',
-                    subtitle: 'Log an item you found',
+                    title: 'Found Item',
+                    subtitle: 'Log a found object',
                     icon: Icons.inventory_2_rounded,
                     color: AppTheme.success,
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(this.context, '/report-found');
+                      Navigator.pushNamed(context, '/report-found');
                     },
                   ),
                 ),
@@ -144,11 +152,11 @@ class _UserDashboardState extends State<UserDashboard>
         onMyReports: () => Navigator.pushNamed(context, '/my-reports'),
         onNotifications: () => Navigator.pushNamed(context, '/notifications'),
         onHowToUse: () => _showInfoDialog(
-          'How to use the app',
+          'How to use CampusRetrieve',
           'Create a clear lost or found report, keep details accurate, and watch notifications so you can respond quickly when a verifier confirms a match.',
         ),
         onTerms: () => _showInfoDialog(
-          'Terms and conditions',
+          'Guidelines',
           'Submit accurate reports only, do not claim items that are not yours, and cooperate with verification requests made for campus safety.',
         ),
         onLogout: () async {
@@ -158,13 +166,13 @@ class _UserDashboardState extends State<UserDashboard>
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreateSheet,
-        backgroundColor: AppTheme.accent,
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
-        elevation: 0,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New Report'),
+        elevation: 8,
+        icon: const Icon(Icons.add_rounded, size: 24),
+        label: const Text('New Report', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
       ),
-      body: DecoratedBox(
+      body: Container(
         decoration: const BoxDecoration(color: AppTheme.background),
         child: SafeArea(
           child: FadeTransition(
@@ -184,34 +192,54 @@ class _UserDashboardState extends State<UserDashboard>
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                     child: _HeroPanel(userId: user.uid, firstName: firstName),
                   ),
                 ),
-                SliverToBoxAdapter(
+                const SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                    child: _StatsRow(userId: user.uid),
+                    padding: EdgeInsets.fromLTRB(24, 28, 24, 0),
+                    child: Text(
+                      'Overview Stats',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.5),
+                    ),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    child: _StatsRow(userId: user.uid),
+                  ),
+                ),
+                // ── BROADCAST FEATURE START ──
+                // Campus Notices Section
+                SliverToBoxAdapter(
+                  child: _BroadcastsSection(
+                    firestoreService: _firestoreService,
+                    userId: user.uid,
+                    userName: user.name,
+                  ),
+                ),
+                // ── BROADCAST FEATURE END ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 32, 20, 12),
                     child: Row(
                       children: [
                         const Expanded(
                           child: Text(
-                            'Recent activity',
+                            'Recent Activity',
                             style: TextStyle(
                               fontSize: 18,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w800,
                               color: AppTheme.textPrimary,
+                              letterSpacing: -0.5,
                             ),
                           ),
                         ),
                         TextButton(
                           onPressed: () => Navigator.pushNamed(context, '/my-reports'),
-                          child: const Text('View all'),
+                          child: const Text('See all', style: TextStyle(fontWeight: FontWeight.w700)),
                         ),
                       ],
                     ),
@@ -223,11 +251,71 @@ class _UserDashboardState extends State<UserDashboard>
                     child: _RecentActivityList(userId: user.uid),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _UserBroadcastInfoCard extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const _UserBroadcastInfoCard({
+    required this.title,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.campaign_outlined,
+              size: 28,
+              color: AppTheme.primary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSecondary,
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -251,44 +339,44 @@ class _TopBar extends StatelessWidget {
       children: [
         InkWell(
           onTap: onMenuTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Ink(
-            width: 54,
-            height: 54,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppTheme.primary.withOpacity(0.18)),
+              borderRadius: BorderRadius.circular(18),
               boxShadow: AppTheme.cardShadow,
             ),
             child: Center(
               child: Text(
                 initials,
                 style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.w800,
                   fontSize: 16,
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Welcome back, $firstName',
+                'Hello, $firstName!',
                 style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
                   color: AppTheme.textPrimary,
+                  letterSpacing: -0.5,
                 ),
               ),
               const Text(
-                'Your campus lost and found workspace',
-                style: TextStyle(color: AppTheme.textSecondary),
+                'Ready to find what you lost?',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
               ),
             ],
           ),
@@ -300,35 +388,30 @@ class _TopBar extends StatelessWidget {
             return Stack(
               clipBehavior: Clip.none,
               children: [
-                IconButton.filledTonal(
-                  onPressed: () => Navigator.pushNamed(context, '/notifications'),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppTheme.textPrimary,
-                    fixedSize: const Size(52, 52),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: AppTheme.cardShadow,
                   ),
-                  icon: const Icon(Icons.notifications_none_rounded),
+                  child: IconButton(
+                    onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                    icon: const Icon(Icons.notifications_outlined, color: AppTheme.textPrimary, size: 26),
+                  ),
                 ),
                 if (unread > 0)
                   Positioned(
-                    top: -2,
-                    right: -2,
+                    top: 2,
+                    right: 2,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
+                      padding: const EdgeInsets.all(5),
+                      decoration: const BoxDecoration(
                         color: AppTheme.error,
-                        borderRadius: BorderRadius.circular(999),
+                        shape: BoxShape.circle,
                       ),
                       child: Text(
                         unread > 9 ? '9+' : '$unread',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
                       ),
                     ),
                   ),
@@ -361,57 +444,135 @@ class _HeroPanel extends StatelessWidget {
               .where('finderId', isEqualTo: userId)
               .snapshots(),
           builder: (context, foundSnapshot) {
-            final lost = lostSnapshot.data?.docs.length ?? 0;
-            final found = foundSnapshot.data?.docs.length ?? 0;
-            final total = lost + found;
-            return Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppTheme.primary,
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: AppTheme.buttonShadow,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Good to see you, $firstName',
-                    style: const TextStyle(color: Colors.white70),
+            return StreamBuilder<List<BroadcastModel>>(
+              stream: FirestoreService().getActiveBroadcasts(),
+              builder: (context, broadcastSnapshot) {
+                final lost = lostSnapshot.data?.docs.length ?? 0;
+                final found = foundSnapshot.data?.docs.length ?? 0;
+                final broadcastCount = broadcastSnapshot.data?.length ?? 0;
+                final total = lost + found;
+
+                return Container(
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                    boxShadow: AppTheme.buttonShadow,
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '$total active records in your account',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'A clearer dashboard for faster reporting, better tracking, and simpler match follow-up.',
-                    style: TextStyle(color: Colors.white70, height: 1.5),
-                  ),
-                  const SizedBox(height: 18),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
+                  child: Stack(
                     children: [
-                      _InfoPill(icon: Icons.search_off_rounded, label: '$lost lost'),
-                      _InfoPill(icon: Icons.inventory_2_rounded, label: '$found found'),
-                      const _InfoPill(
-                        icon: Icons.verified_user_outlined,
-                        label: 'Verifier support',
+                      // Decorative circles
+                      Positioned(
+                        right: -40,
+                        top: -40,
+                        child: Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.08),
+                          ),
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: AppTheme.glassDecoration(opacity: 0.15, radius: BorderRadius.circular(12)),
+                            child: const Text(
+                              'CampusRetrieve Dashboard',
+                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            '$total Active',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              height: 1.1,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                          const Text(
+                            'Reports in your account',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _HeroMetricPill(
+                                  label: 'Lost',
+                                  value: '$lost',
+                                  icon: Icons.help_outline,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _HeroMetricPill(
+                                  label: 'Found',
+                                  value: '$found',
+                                  icon: Icons.check_circle_outline,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _HeroMetricPill(
+                                  label: 'Broadcast',
+                                  value: '$broadcastCount',
+                                  icon: Icons.campaign_outlined,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
       },
+    );
+  }
+}
+
+class _HeroMetricPill extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _HeroMetricPill({required this.label, required this.value, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: AppTheme.glassDecoration(opacity: 0.2, radius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white, size: 16),
+          const SizedBox(height: 8),
+          Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -427,7 +588,7 @@ class _StatsRow extends StatelessWidget {
       children: [
         Expanded(
           child: _MetricCard(
-            title: 'Lost',
+            title: 'Lost Cases',
             icon: Icons.search_off_rounded,
             tint: AppTheme.error,
             stream: FirebaseFirestore.instance
@@ -437,10 +598,10 @@ class _StatsRow extends StatelessWidget {
                 .map((snapshot) => snapshot.docs.length),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: _MetricCard(
-            title: 'Found',
+            title: 'Found Items',
             icon: Icons.inventory_2_rounded,
             tint: AppTheme.success,
             stream: FirebaseFirestore.instance
@@ -450,11 +611,11 @@ class _StatsRow extends StatelessWidget {
                 .map((snapshot) => snapshot.docs.length),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: _MetricCard(
-            title: 'Matched',
-            icon: Icons.compare_arrows_rounded,
+            title: 'Resolved',
+            icon: Icons.verified_rounded,
             tint: AppTheme.primary,
             stream: FirebaseFirestore.instance
                 .collection('lost_items')
@@ -465,6 +626,197 @@ class _StatsRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color tint;
+  final Stream<int> stream;
+
+  const _MetricCard({
+    required this.title,
+    required this.icon,
+    required this.tint,
+    required this.stream,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: stream,
+      builder: (context, snapshot) {
+        final value = snapshot.data ?? 0;
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: tint.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: tint, size: 22),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value.toString().padLeft(2, '0'),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textPrimary,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ActivityTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String status;
+  final DateTime date;
+  final bool isLost;
+  final String? photoURL;
+
+  const _ActivityTile({
+    required this.title,
+    required this.subtitle,
+    required this.status,
+    required this.date,
+    required this.isLost,
+    this.photoURL,
+  });
+
+  String _activityDate(DateTime d) {
+    final now = DateTime.now();
+    final diff = now.difference(d);
+    if (diff.inDays == 0) return 'Today, ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${diff.inDays} days ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMatched = status == 'matched';
+    final accent = isMatched ? AppTheme.primary : (isLost ? AppTheme.error : AppTheme.success);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: photoURL != null && photoURL!.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: photoURL!,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    errorWidget: (_, __, ___) => Icon(
+                      isLost ? Icons.search_off_rounded : Icons.inventory_2_rounded,
+                      color: accent,
+                    ),
+                  )
+                : Icon(
+                    isLost ? Icons.search_off_rounded : Icons.inventory_2_rounded,
+                    color: accent,
+                  ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800, color: AppTheme.textPrimary, fontSize: 15),
+                      ),
+                    ),
+                    _StatusTag(status: status, color: accent),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.access_time_rounded, size: 12, color: AppTheme.textSecondary.withOpacity(0.6)),
+                    const SizedBox(width: 4),
+                    Text(
+                      _activityDate(date),
+                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary.withOpacity(0.8), fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusTag extends StatelessWidget {
+  final String status;
+  final Color color;
+
+  const _StatusTag({required this.status, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        status.toUpperCase(),
+        style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+      ),
     );
   }
 }
@@ -519,31 +871,117 @@ class _RecentActivityList extends StatelessWidget {
             items.sort(
               (a, b) => (b['createdAt'] as DateTime).compareTo(a['createdAt'] as DateTime),
             );
+
             if (items.isEmpty) {
-              return const _EmptyCard(
-                icon: Icons.inbox_outlined,
-                title: 'No reports yet',
-                subtitle: 'Your latest lost and found activity will appear here.',
-              );
+              return _EmptyActivity();
             }
+
             return Column(
               children: items.take(5).map((item) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _ActivityTile(
-                    title: item['title'] as String,
-                    subtitle: item['subtitle'] as String,
-                    status: item['status'] as String,
-                    date: item['createdAt'] as DateTime,
-                    isLost: item['isLost'] as bool,
-                    photoURL: item['photoURL'] as String?,
-                  ),
+                return _ActivityTile(
+                  title: item['title'] as String,
+                  subtitle: item['subtitle'] as String,
+                  status: item['status'] as String,
+                  date: item['createdAt'] as DateTime,
+                  isLost: item['isLost'] as bool,
+                  photoURL: item['photoURL'] as String?,
                 );
               }).toList(),
             );
           },
         );
       },
+    );
+  }
+}
+
+class _EmptyActivity extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: AppTheme.background,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.history_toggle_off_rounded, color: AppTheme.textSecondary.withOpacity(0.5), size: 40),
+          ),
+          const SizedBox(height: 20),
+          const Text('No recent activity', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 8),
+          const Text(
+            'Your reports and matches will appear here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CreateOptionCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CreateOptionCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.border.withOpacity(0.5)),
+          boxShadow: AppTheme.cardShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -572,314 +1010,70 @@ class _DashboardDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      width: 300,
+      width: 320,
       backgroundColor: AppTheme.background,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      child: CircleAvatar(
-                        radius: 27,
-                        backgroundColor: Colors.white,
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            userName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            email,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              _DrawerTile(
-                icon: Icons.description_outlined,
-                label: 'My reports',
-                onTap: onMyReports,
-              ),
-              _DrawerTile(
-                icon: Icons.notifications_outlined,
-                label: 'Notifications',
-                onTap: onNotifications,
-              ),
-              _DrawerTile(
-                icon: Icons.play_circle_outline_rounded,
-                label: 'How to use the app',
-                onTap: onHowToUse,
-              ),
-              _DrawerTile(
-                icon: Icons.policy_outlined,
-                label: 'Terms and conditions',
-                onTap: onTerms,
-              ),
-              const Spacer(),
-              _DrawerTile(
-                icon: Icons.logout_rounded,
-                label: 'Logout',
-                color: AppTheme.error,
-                onTap: onLogout,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color tint;
-  final Stream<int> stream;
-
-  const _MetricCard({
-    required this.title,
-    required this.icon,
-    required this.tint,
-    required this.stream,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<int>(
-      stream: stream,
-      builder: (context, snapshot) {
-        final value = snapshot.data ?? 0;
-        return Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppTheme.border),
-            boxShadow: AppTheme.cardShadow,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: tint.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: tint),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                value.toString().padLeft(2, '0'),
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(title, style: const TextStyle(color: AppTheme.textSecondary)),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ActivityTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String status;
-  final DateTime date;
-  final bool isLost;
-  final String? photoURL;
-
-  const _ActivityTile({
-    required this.title,
-    required this.subtitle,
-    required this.status,
-    required this.date,
-    required this.isLost,
-    this.photoURL,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = isLost ? AppTheme.error : AppTheme.success;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: AppTheme.cardShadow,
-      ),
-      child: Row(
+      child: Column(
         children: [
           Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: accent.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(18),
+            padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
+            decoration: const BoxDecoration(
+              gradient: AppTheme.primaryGradient,
             ),
-            clipBehavior: Clip.antiAlias,
-            child: photoURL != null && photoURL!.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: photoURL!,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => Icon(
-                      isLost ? Icons.search_off_rounded : Icons.inventory_2_rounded,
-                      color: accent,
-                    ),
-                  )
-                : Icon(
-                    isLost ? Icons.search_off_rounded : Icons.inventory_2_rounded,
-                    color: accent,
-                  ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Center(
+                    child: Text(
+                      initials,
+                      style: const TextStyle(color: AppTheme.primary, fontSize: 22, fontWeight: FontWeight.w800),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle.isEmpty ? 'Campus update' : subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _activityDate(date),
-                  style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        userName,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: -0.5),
+                      ),
+                      Text(
+                        email,
+                        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          _StatusPill(status: status),
-        ],
-      ),
-    );
-  }
-
-  String _activityDate(DateTime date) {
-    final difference = DateTime.now().difference(date);
-    if (difference.inDays <= 0) return 'Updated today';
-    if (difference.inDays == 1) return 'Updated yesterday';
-    return 'Updated ${difference.inDays} days ago';
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String status;
-
-  const _StatusPill({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final normalized = status.toLowerCase();
-    final (color, icon) = switch (normalized) {
-      'matched' => (AppTheme.success, Icons.verified_rounded),
-      'claimed' => (AppTheme.primary, Icons.done_all_rounded),
-      'rejected' => (AppTheme.error, Icons.cancel_outlined),
-      _ => (AppTheme.warning, Icons.schedule_rounded),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            '${normalized[0].toUpperCase()}${normalized.substring(1)}',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color,
+          const SizedBox(height: 12),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                _DrawerTile(icon: Icons.description_outlined, label: 'My Reports', onTap: onMyReports),
+                _DrawerTile(icon: Icons.notifications_none_rounded, label: 'Notifications', onTap: onNotifications),
+                const Divider(height: 32, indent: 16, endIndent: 16),
+                _DrawerTile(icon: Icons.help_outline_rounded, label: 'How to use', onTap: onHowToUse),
+                _DrawerTile(icon: Icons.policy_outlined, label: 'Guidelines', onTap: onTerms),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _InfoPill({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: _DrawerTile(
+              icon: Icons.logout_rounded,
+              label: 'Logout',
+              color: AppTheme.error,
+              onTap: onLogout,
             ),
           ),
         ],
@@ -894,132 +1088,172 @@ class _DrawerTile extends StatelessWidget {
   final VoidCallback onTap;
   final Color? color;
 
-  const _DrawerTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.color,
-  });
+  const _DrawerTile({required this.icon, required this.label, required this.onTap, this.color});
 
   @override
   Widget build(BuildContext context) {
     final effectiveColor = color ?? AppTheme.textPrimary;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        tileColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        leading: Icon(icon, color: effectiveColor),
-        title: Text(
-          label,
-          style: TextStyle(color: effectiveColor, fontWeight: FontWeight.w600),
-        ),
-        onTap: () {
-          Navigator.pop(context);
-          onTap();
-        },
+    return ListTile(
+      onTap: () {
+        Navigator.pop(context);
+        onTap();
+      },
+      leading: Icon(icon, color: effectiveColor.withOpacity(0.7)),
+      title: Text(
+        label,
+        style: TextStyle(color: effectiveColor, fontWeight: FontWeight.w700, fontSize: 15),
       ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 }
 
-class _CreateOptionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
+// ── BROADCAST FEATURE START ──
+class _BroadcastsSection extends StatelessWidget {
+  final FirestoreService firestoreService;
+  final String userId;
+  final String userName;
 
-  const _CreateOptionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.onTap,
+  const _BroadcastsSection({
+    required this.firestoreService,
+    required this.userId,
+    required this.userName,
   });
+
+  Future<void> _handleRespond(
+      BuildContext context, BroadcastModel broadcast) async {
+    try {
+      await firestoreService.markBroadcastRead(broadcast.broadcastId, userId);
+      await firestoreService.notifyVerifiersBroadcastResponse(
+        broadcastId: broadcast.broadcastId,
+        respondedByUserId: userId,
+        respondedByName: userName,
+        itemName: broadcast.itemName,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Verifiers have been notified. Visit the security office with your details.'),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
-      child: Ink(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          color: color.withOpacity(0.06),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(14),
+    return StreamBuilder<List<BroadcastModel>>(
+      stream: firestoreService.getActiveBroadcasts(),
+      builder: (context, snapshot) {
+        final broadcasts = snapshot.data ?? [];
+        final unreadCount =
+            broadcasts.where((b) => !b.readBy.contains(userId)).length;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Section heading with unread badge
+              Row(
+                children: [
+                  const Text(
+                    'Campus Notices',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  if (unreadCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1976D2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '$unreadCount new',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 6),
-            Text(subtitle, style: const TextStyle(color: AppTheme.textSecondary)),
-          ],
-        ),
-      ),
+              const SizedBox(height: 14),
+
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const Center(
+                    child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(),
+                ))
+              else if (snapshot.hasError)
+                _UserBroadcastInfoCard(
+                  title: 'Broadcasts will appear here in real time.',
+                  message:
+                      'As soon as a verifier publishes a campus notice, this section updates automatically.',
+                )
+              else if (broadcasts.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                    boxShadow: AppTheme.cardShadow,
+                  ),
+                  child: const Column(
+                    children: [
+                      Text('📋', style: TextStyle(fontSize: 32)),
+                      SizedBox(height: 8),
+                      Text(
+                        'No active notices right now',
+                        style: TextStyle(
+                            fontSize: 14, color: AppTheme.textSecondary),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Column(
+                  children: [
+                    for (final broadcast in broadcasts)
+                      BroadcastCard(
+                        broadcast: broadcast,
+                        currentUserId: userId,
+                        fullWidth: true,
+                        showResponseCount: false,
+                        showRespondAction: false,
+                        onRespond: (b) => _handleRespond(context, b),
+                      ),
+                  ],
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
-
-class _EmptyCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _EmptyCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: AppTheme.canvas,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Icon(icon, color: AppTheme.primary),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppTheme.textSecondary, height: 1.5),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// ── BROADCAST FEATURE END ──

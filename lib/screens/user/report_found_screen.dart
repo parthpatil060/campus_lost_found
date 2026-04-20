@@ -103,9 +103,10 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
     }
     if (!_speechReady) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Voice input is not available on this device right now'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Voice input unavailable'),
         backgroundColor: AppTheme.error,
+        behavior: SnackBarBehavior.floating,
       ));
       return;
     }
@@ -157,7 +158,7 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
   Widget _voiceSuffix(TextEditingController controller, String fieldName) {
     final isActive = _isListening && _activeVoiceField == fieldName;
     return IconButton(
-      tooltip: isActive ? 'Stop voice input' : 'Start voice input',
+      tooltip: isActive ? 'Stop' : 'Voice Input',
       icon: Icon(
         isActive ? Icons.mic_rounded : Icons.mic_none_rounded,
         color: isActive ? AppTheme.accent : AppTheme.textSecondary,
@@ -169,45 +170,52 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
   Future<void> _pickImage() async {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Upload photo',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppTheme.border.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(99),
               ),
-              const SizedBox(height: 14),
-              ListTile(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                tileColor: AppTheme.canvas,
-                leading: const Icon(Icons.camera_alt_outlined),
-                title: const Text('Camera'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 70);
-                  if (image != null) setState(() => _selectedImage = File(image.path));
-                },
-              ),
-              const SizedBox(height: 10),
-              ListTile(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                tileColor: AppTheme.canvas,
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Gallery'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-                  if (image != null) setState(() => _selectedImage = File(image.path));
-                },
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Capture Found Item',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 20),
+            _ImagePickTile(
+              label: 'Take Photo',
+              icon: Icons.camera_alt_rounded,
+              color: AppTheme.success,
+              onTap: () async {
+                Navigator.pop(context);
+                final image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+                if (image != null) setState(() => _selectedImage = File(image.path));
+              },
+            ),
+            const SizedBox(height: 12),
+            _ImagePickTile(
+              label: 'Choose from Gallery',
+              icon: Icons.photo_library_rounded,
+              color: AppTheme.success,
+              onTap: () async {
+                Navigator.pop(context);
+                final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+                if (image != null) setState(() => _selectedImage = File(image.path));
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -216,16 +224,18 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Photo is required for found items'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Photo is required for found items'),
         backgroundColor: AppTheme.error,
+        behavior: SnackBarBehavior.floating,
       ));
       return;
     }
     if (_storageOption == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please select where the item is stored'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Please specify where item is kept'),
         backgroundColor: AppTheme.error,
+        behavior: SnackBarBehavior.floating,
       ));
       return;
     }
@@ -247,9 +257,10 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Found item reported successfully'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Item successfully logged in system'),
         backgroundColor: AppTheme.success,
+        behavior: SnackBarBehavior.floating,
       ));
       Navigator.pop(context);
     } catch (e) {
@@ -257,6 +268,7 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Error: $e'),
         backgroundColor: AppTheme.error,
+        behavior: SnackBarBehavior.floating,
       ));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -266,47 +278,57 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: AppTheme.softGradient),
-        child: SafeArea(
-          child: Form(
-            key: _formKey,
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: ReportFormHeader(
-                      title: 'Report found item',
-                      subtitle: 'Give verifiers a clear record of what was found and where it is kept.',
-                      badgeLabel: 'Found report',
-                      badgeColor: AppTheme.success,
-                    ),
+      backgroundColor: AppTheme.background,
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: ReportFormHeader(
+                    title: 'Report Found Item',
+                    subtitle: 'Accurate logging helps students retrieve their items faster.',
+                    badgeLabel: 'Found Report',
+                    badgeColor: AppTheme.success,
                   ),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.all(20),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      ReportUploadCard(
-                        title: 'Required photo',
-                        subtitle: 'A clear image helps verifiers match the right owner.',
-                        icon: Icons.photo_camera_back_outlined,
-                        imageFile: _selectedImage,
-                        accent: AppTheme.success,
-                        onTap: _pickImage,
-                      ),
-                      const SizedBox(height: 18),
-                      ReportSectionCard(
-                        title: 'Item details',
-                        child: Column(
-                          children: [
-                            DropdownButtonFormField<String>(
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 32, 20, 40),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    ReportUploadCard(
+                      title: 'Item Photo',
+                      subtitle: 'Mandatory. Ensure item is clearly visible.',
+                      icon: Icons.photo_camera_back_rounded,
+                      imageFile: _selectedImage,
+                      accent: AppTheme.success,
+                      onTap: _pickImage,
+                    ),
+                    const SizedBox(height: 24),
+                    ReportSectionCard(
+                      title: 'Identify Item',
+                      child: Column(
+                        children: [
+                           Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: AppTheme.border.withOpacity(0.5)),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: DropdownButtonFormField<String>(
                               value: _selectedCategory,
+                              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.textSecondary),
                               decoration: const InputDecoration(
-                                hintText: 'Category',
-                                prefixIcon: Icon(Icons.category_outlined),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                prefixIcon: Icon(Icons.category_rounded, size: 22),
+                                hintText: 'Select Category',
                               ),
                               items: _categories
                                   .map((category) =>
@@ -314,74 +336,117 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
                                   .toList(),
                               onChanged: (value) => setState(() => _selectedCategory = value),
                             ),
-                            const SizedBox(height: 14),
-                            AppTextField(
-                              hint: 'Describe the item',
-                              controller: _descriptionCtrl,
-                              prefixIcon: Icons.description_outlined,
-                              suffix: _voiceSuffix(_descriptionCtrl, 'description'),
-                              maxLines: 3,
-                              validator: (value) => value == null || value.isEmpty
-                                  ? 'Description is required'
-                                  : null,
-                            ),
-                            const SizedBox(height: 14),
-                            AppTextField(
-                              hint: 'Where did you find it?',
-                              controller: _locationCtrl,
-                              prefixIcon: Icons.location_on_outlined,
-                              suffix: _voiceSuffix(_locationCtrl, 'location'),
-                              validator: (value) =>
-                                  value == null || value.isEmpty ? 'Location is required' : null,
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 16),
+                          AppTextField(
+                            hint: 'Describe what you found (colors, condition...)',
+                            controller: _descriptionCtrl,
+                            prefixIcon: Icons.description_rounded,
+                            suffix: _voiceSuffix(_descriptionCtrl, 'description'),
+                            maxLines: 3,
+                            validator: (value) => value == null || value.isEmpty
+                                ? 'Description required'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          AppTextField(
+                            hint: 'Where exactly was it found?',
+                            controller: _locationCtrl,
+                            prefixIcon: Icons.location_searching_rounded,
+                            suffix: _voiceSuffix(_locationCtrl, 'location'),
+                            validator: (value) =>
+                                value == null || value.isEmpty ? 'Location required' : null,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 18),
-                      ReportSectionCard(
-                        title: 'Storage status',
-                        subtitle: 'Tell the owner and verifier where the item is currently kept.',
-                        child: Column(
-                          children: _storageOptions.map((option) {
-                            final selected = _storageOption == option;
-                            return AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              margin: const EdgeInsets.only(bottom: 10),
-                              decoration: BoxDecoration(
-                                color: selected ? AppTheme.primary.withOpacity(0.08) : AppTheme.canvas,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: selected ? AppTheme.primary : Colors.transparent,
+                    ),
+                    const SizedBox(height: 24),
+                    ReportSectionCard(
+                      title: 'Handling Status',
+                      subtitle: 'Choose where the item is currently kept.',
+                      child: Column(
+                        children: _storageOptions.map((option) {
+                          final selected = _storageOption == option;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: InkWell(
+                              onTap: () => setState(() => _storageOption = option),
+                              borderRadius: BorderRadius.circular(18),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: selected ? AppTheme.primary.withOpacity(0.08) : Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: selected ? AppTheme.primary : AppTheme.border.withOpacity(0.5),
+                                    width: selected ? 2 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        option,
+                                        style: TextStyle(
+                                          color: selected ? AppTheme.primary : AppTheme.textPrimary,
+                                          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                    if (selected)
+                                      const Icon(Icons.check_circle_rounded, color: AppTheme.primary, size: 20),
+                                  ],
                                 ),
                               ),
-                              child: RadioListTile<String>(
-                                value: option,
-                                groupValue: _storageOption,
-                                activeColor: AppTheme.primary,
-                                title: Text(option),
-                                onChanged: (value) => setState(() => _storageOption = value),
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                            ),
+                          );
+                        }).toList(),
                       ),
-                      const SizedBox(height: 22),
-                      AppButton(
-                        text: 'Submit found report',
-                        onPressed: _submit,
-                        isLoading: _isSubmitting,
-                        icon: Icons.send_rounded,
-                        color: AppTheme.success,
-                      ),
-                      const SizedBox(height: 24),
-                    ]),
-                  ),
+                    ),
+                    const SizedBox(height: 32),
+                    AppButton(
+                      text: 'Submit Report',
+                      onPressed: _submit,
+                      isLoading: _isSubmitting,
+                      icon: Icons.send_rounded,
+                    ),
+                  ]),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ImagePickTile extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ImagePickTile({required this.label, required this.icon, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+      trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      tileColor: AppTheme.background,
     );
   }
 }

@@ -38,121 +38,131 @@ class _MyReportsScreenState extends State<MyReportsScreen>
   Widget build(BuildContext context) {
     final uid = context.read<AuthProvider>().currentUser!.uid;
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(color: AppTheme.background),
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        fixedSize: const Size(50, 50),
+      backgroundColor: AppTheme.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Row(
+                children: [
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppTheme.cardShadow,
                       ),
-                      icon: const Icon(Icons.arrow_back_rounded),
+                      child: const Icon(Icons.arrow_back_rounded, color: AppTheme.primary, size: 24),
                     ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('My reports', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-                          Text(
-                            'Review every lost and found report you have submitted.',
-                            style: TextStyle(color: AppTheme.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: AppTheme.border),
                   ),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    indicator: BoxDecoration(
-                      color: AppTheme.canvas.withOpacity(0.35),
-                      borderRadius: BorderRadius.circular(18),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'My Reports',
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.5),
+                        ),
+                        Text(
+                          'Tracking your submissions',
+                          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ],
                     ),
-                    dividerColor: Colors.transparent,
-                    labelColor: AppTheme.primary,
-                    unselectedLabelColor: AppTheme.textSecondary,
-                    labelPadding: EdgeInsets.zero,
-                    tabs: const [
-                      Tab(text: 'Lost items'),
-                      Tab(text: 'Found items'),
-                    ],
                   ),
-                ),
+                ],
               ),
-              Expanded(
-                child: TabBarView(
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: AppTheme.cardShadow,
+                ),
+                child: TabBar(
                   controller: _tabController,
-                  children: [
-                    StreamBuilder<List<LostItemModel>>(
-                      stream: _fs.getLostItemsByUser(uid),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        final items = snapshot.data!;
-                        if (items.isEmpty) {
-                          return _EmptyState(
-                            title: 'No lost reports',
-                            subtitle: 'Start by submitting a lost item report with clear identifying details.',
-                            icon: Icons.search_off_rounded,
-                            actionLabel: 'Report lost item',
-                            onTap: () => Navigator.pushNamed(context, '/report-lost'),
-                          );
-                        }
-                        return ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                          itemCount: items.length,
-                          itemBuilder: (context, index) => _LostReportTile(item: items[index]),
-                        );
-                      },
-                    ),
-                    StreamBuilder<List<FoundItemModel>>(
-                      stream: _fs.getFoundItemsByUser(uid),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        final items = snapshot.data!;
-                        if (items.isEmpty) {
-                          return _EmptyState(
-                            title: 'No found reports',
-                            subtitle: 'When you recover an item on campus, log it here for verification.',
-                            icon: Icons.inventory_2_rounded,
-                            actionLabel: 'Report found item',
-                            onTap: () => Navigator.pushNamed(context, '/report-found'),
-                          );
-                        }
-                        return ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                          itemCount: items.length,
-                          itemBuilder: (context, index) => _FoundReportTile(item: items[index]),
-                        );
-                      },
-                    ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicator: BoxDecoration(
+                    color: AppTheme.primary,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  dividerColor: Colors.transparent,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: AppTheme.textSecondary,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  tabs: const [
+                    Tab(text: 'Lost Items'),
+                    Tab(text: 'Found Items'),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  StreamBuilder<List<LostItemModel>>(
+                    stream: _fs.getLostItemsByUser(uid),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final items = snapshot.data!;
+                      if (items.isEmpty) {
+                        return _EmptyState(
+                          title: 'No lost reports yet',
+                          subtitle: 'Items you report as lost will appear here.',
+                          icon: Icons.search_off_rounded,
+                          actionLabel: 'Report Lost Item',
+                          color: AppTheme.error,
+                          onTap: () => Navigator.pushNamed(context, '/report-lost'),
+                        );
+                      }
+                      return ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                        itemCount: items.length,
+                        itemBuilder: (context, index) => _LostReportTile(item: items[index]),
+                      );
+                    },
+                  ),
+                  StreamBuilder<List<FoundItemModel>>(
+                    stream: _fs.getFoundItemsByUser(uid),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final items = snapshot.data!;
+                      if (items.isEmpty) {
+                        return _EmptyState(
+                          title: 'No found reports yet',
+                          subtitle: 'Items you report as found will appear here.',
+                          icon: Icons.inventory_2_rounded,
+                          actionLabel: 'Report Found Item',
+                          color: AppTheme.success,
+                          onTap: () => Navigator.pushNamed(context, '/report-found'),
+                        );
+                      }
+                      return ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                        itemCount: items.length,
+                        itemBuilder: (context, index) => _FoundReportTile(item: items[index]),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -168,11 +178,11 @@ class _LostReportTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return _ReportTileShell(
       title: item.itemName,
-      subtitle: item.category ?? 'Lost item',
+      subtitle: item.category ?? 'Lost Item',
       meta: item.possibleLocations.join(', '),
       date: item.createdAt,
       status: item.status,
-      fallbackIcon: Icons.search_off_rounded,
+      fallbackIcon: Icons.help_outline_rounded,
       fallbackColor: AppTheme.error,
       image: item.photoURL == null
           ? null
@@ -190,7 +200,7 @@ class _FoundReportTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return _ReportTileShell(
       title: item.description,
-      subtitle: item.category ?? 'Found item',
+      subtitle: item.category ?? 'Found Item',
       meta: '${item.locationFound} · ${item.storageOption}',
       date: item.createdAt,
       status: item.status,
@@ -225,67 +235,98 @@ class _ReportTileShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppTheme.border),
+        borderRadius: BorderRadius.circular(32),
         boxShadow: AppTheme.cardShadow,
       ),
-      child: Row(
+      child: Column(
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(28),
-              bottomLeft: Radius.circular(28),
-            ),
-            child: SizedBox(
-              width: 102,
-              height: 122,
-              child: image ??
-                  Container(
-                    color: fallbackColor.withOpacity(0.12),
-                    child: Icon(fallbackIcon, color: fallbackColor, size: 34),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 96,
+                height: 110,
+                decoration: BoxDecoration(
+                  color: AppTheme.background,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(32),
+                    bottomLeft: Radius.circular(32),
                   ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: image ??
+                    Container(
+                      color: fallbackColor.withOpacity(0.1),
+                      child: Icon(fallbackIcon, color: fallbackColor, size: 32),
+                    ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          StatusBadge(status: status),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      StatusBadge(status: status),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(Icons.location_on_rounded, size: 14, color: AppTheme.textSecondary.withOpacity(0.5)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              meta,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: AppTheme.textSecondary.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(subtitle, style: const TextStyle(color: AppTheme.textSecondary)),
-                  const SizedBox(height: 10),
-                  Text(
-                    meta,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppTheme.textSecondary, height: 1.5),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    DateFormat('MMM d, yyyy').format(date),
-                    style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                  ),
-                ],
+                ),
               ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.background.withOpacity(0.5),
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+            ),
+            child: Row(
+              children: [
+                 Icon(Icons.access_time_filled_rounded, size: 16, color: AppTheme.textSecondary.withOpacity(0.4)),
+                 const SizedBox(width: 8),
+                 Text(
+                   DateFormat('MMMM d, yyyy').format(date),
+                   style: TextStyle(fontSize: 11, color: AppTheme.textSecondary.withOpacity(0.6), fontWeight: FontWeight.w700),
+                 ),
+                 const Spacer(),
+                 const Icon(Icons.chevron_right_rounded, size: 20, color: AppTheme.textSecondary),
+              ],
             ),
           ),
         ],
@@ -299,6 +340,7 @@ class _EmptyState extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final String actionLabel;
+  final Color color;
   final VoidCallback onTap;
 
   const _EmptyState({
@@ -306,6 +348,7 @@ class _EmptyState extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.actionLabel,
+    required this.color,
     required this.onTap,
   });
 
@@ -313,38 +356,43 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: AppTheme.border),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppTheme.canvas,
-                  borderRadius: BorderRadius.circular(22),
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: AppTheme.cardShadow,
+              ),
+              child: Icon(icon, color: color.withOpacity(0.4), size: 52),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppTheme.textSecondary, height: 1.5, fontSize: 14),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: onTap,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: Icon(icon, color: AppTheme.primary, size: 30),
+                child: Text(actionLabel),
               ),
-              const SizedBox(height: 16),
-              Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppTheme.textSecondary, height: 1.5),
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton(onPressed: onTap, child: Text(actionLabel)),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
