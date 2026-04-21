@@ -45,7 +45,7 @@ class CampusLostFoundApp extends StatelessWidget {
       ],
       child: OverlaySupport.global(
         child: MaterialApp(
-          title: 'Campus Lost & Found',
+          title: 'CampusRetrieve',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           initialRoute: '/',

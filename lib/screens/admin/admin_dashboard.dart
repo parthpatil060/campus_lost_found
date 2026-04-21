@@ -1,12 +1,19 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/broadcast_card.dart';
+
+// ── BROADCAST FEATURE START ──
+import '../../models/broadcast_model.dart';
+// ── BROADCAST FEATURE END ──
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -24,7 +31,9 @@ class _AdminDashboardState extends State<AdminDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    // ── BROADCAST FEATURE START ──
+    _tabController = TabController(length: 4, vsync: this);
+    // ── BROADCAST FEATURE END ──
   }
 
   @override
@@ -44,12 +53,15 @@ class _AdminDashboardState extends State<AdminDashboard>
         onAnalytics: () => _tabController.animateTo(0),
         onVerifiers: () => _tabController.animateTo(1),
         onReports: () => _tabController.animateTo(2),
+        // ── BROADCAST FEATURE START ──
+        onBroadcasts: () => _tabController.animateTo(3),
+        // ── BROADCAST FEATURE END ──
         onLogout: () async {
           await context.read<AuthProvider>().signOut();
           if (mounted) Navigator.pushReplacementNamed(context, '/login');
         },
       ),
-      body: DecoratedBox(
+      body: Container(
         decoration: const BoxDecoration(color: AppTheme.background),
         child: SafeArea(
           child: Column(
@@ -62,17 +74,17 @@ class _AdminDashboardState extends State<AdminDashboard>
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                 child: _AdminHero(name: admin?.name ?? 'Admin'),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: AppTheme.border),
+                    boxShadow: AppTheme.cardShadow,
                   ),
                   child: TabBar(
                     controller: _tabController,
@@ -80,15 +92,26 @@ class _AdminDashboardState extends State<AdminDashboard>
                     indicator: BoxDecoration(
                       color: AppTheme.primary,
                       borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withOpacity(0.2),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     dividerColor: Colors.transparent,
                     labelColor: Colors.white,
                     unselectedLabelColor: AppTheme.textSecondary,
-                    labelPadding: EdgeInsets.zero,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                     tabs: const [
                       Tab(text: 'Analytics'),
                       Tab(text: 'Verifiers'),
                       Tab(text: 'Reports'),
+                      // ── BROADCAST FEATURE START ──
+                      Tab(text: 'Broadcasts'),
+                      // ── BROADCAST FEATURE END ──
                     ],
                   ),
                 ),
@@ -100,6 +123,9 @@ class _AdminDashboardState extends State<AdminDashboard>
                     _AnalyticsTab(fs: _fs),
                     _VerifiersTab(fs: _fs),
                     _ReportsTab(fs: _fs),
+                    // ── BROADCAST FEATURE START ──
+                    _AdminBroadcastsTab(fs: _fs),
+                    // ── BROADCAST FEATURE END ──
                   ],
                 ),
               ),
@@ -116,21 +142,45 @@ class _AnalyticsTab extends StatelessWidget {
 
   const _AnalyticsTab({required this.fs});
 
+  // ── BROADCAST FEATURE START ──
+  Future<Map<String, int>> _getAnalyticsWithBroadcasts() async {
+    final results = await Future.wait([
+      fs.getAnalytics(),
+      fs.getActiveBroadcasts().first,
+      fs.getAllBroadcasts().first,
+    ]);
+    final base = results[0] as Map<String, int>;
+    final activeBroadcasts = results[1] as List<BroadcastModel>;
+    final allBroadcasts = results[2] as List<BroadcastModel>;
+    return {
+      ...base,
+      'activeBroadcasts': activeBroadcasts.length,
+      'totalBroadcasts': allBroadcasts.length,
+    };
+  }
+  // ── BROADCAST FEATURE END ──
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, int>>(
-      future: fs.getAnalytics(),
+      // ── BROADCAST FEATURE START ──
+      future: _getAnalyticsWithBroadcasts(),
+      // ── BROADCAST FEATURE END ──
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final data = snapshot.data!;
         final cards = [
-          ('Total lost', '${data['totalLost'] ?? 0}', Icons.search_off_rounded, AppTheme.error),
-          ('Total found', '${data['totalFound'] ?? 0}', Icons.inventory_2_rounded, AppTheme.success),
+          ('Total Lost', '${data['totalLost'] ?? 0}', Icons.search_off_rounded, AppTheme.error),
+          ('Total Found', '${data['totalFound'] ?? 0}', Icons.inventory_2_rounded, AppTheme.success),
           ('Matched', '${data['totalMatched'] ?? 0}', Icons.compare_arrows_rounded, AppTheme.primary),
-          ('Users', '${data['totalUsers'] ?? 0}', Icons.groups_rounded, AppTheme.warning),
+          ('Total Users', '${data['totalUsers'] ?? 0}', Icons.groups_rounded, const Color(0xFF6A67CE)),
+          // ── BROADCAST FEATURE START ──
+          ('Active Broadcasts', '${data['activeBroadcasts'] ?? 0}', Icons.campaign_rounded, const Color(0xFF1976D2)),
+          ('Total Broadcasts', '${data['totalBroadcasts'] ?? 0}', Icons.broadcast_on_personal_rounded, const Color(0xFF00796B)),
+          // ── BROADCAST FEATURE END ──
         ];
         return ListView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
           children: [
             GridView.builder(
               shrinkWrap: true,
@@ -138,9 +188,9 @@ class _AnalyticsTab extends StatelessWidget {
               itemCount: cards.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.98,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.05,
               ),
               itemBuilder: (context, index) {
                 final card = cards[index];
@@ -152,16 +202,21 @@ class _AnalyticsTab extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 24),
+            const Text(
+              'Pending Submissions',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.5),
+            ),
+            const SizedBox(height: 14),
             _PendingPanel(
-              title: 'Pending lost reports',
+              title: 'Waiting for Verifiers (Lost)',
               count: data['pendingLost'] ?? 0,
               color: AppTheme.error,
               icon: Icons.pending_actions_rounded,
             ),
             const SizedBox(height: 12),
             _PendingPanel(
-              title: 'Pending found reports',
+              title: 'New Found Items Submitted',
               count: data['pendingFound'] ?? 0,
               color: AppTheme.success,
               icon: Icons.inventory_2_rounded,
@@ -191,23 +246,22 @@ class _AdminTopBar extends StatelessWidget {
       children: [
         InkWell(
           onTap: onMenuTap,
-          borderRadius: BorderRadius.circular(999),
-          child: Ink(
-            width: 54,
-            height: 54,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppTheme.primary.withOpacity(0.18)),
+              borderRadius: BorderRadius.circular(18),
               boxShadow: AppTheme.cardShadow,
             ),
             child: Center(
               child: Text(
                 initials.isEmpty ? 'A' : initials,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                   fontSize: 16,
-                  color: AppTheme.textPrimary,
+                  color: AppTheme.primary,
                 ),
               ),
             ),
@@ -219,10 +273,10 @@ class _AdminTopBar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Admin workspace',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                'Admin Control Center',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.5),
               ),
-              Text(name, style: const TextStyle(color: AppTheme.textSecondary)),
+              Text('Managing CampusRetrieve', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
             ],
           ),
         ),
@@ -239,29 +293,46 @@ class _AdminHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppTheme.primary,
-        borderRadius: BorderRadius.circular(30),
+        gradient: AppTheme.primaryGradient,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         boxShadow: AppTheme.buttonShadow,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          const Text('Admin control', style: TextStyle(color: Colors.white70)),
-          const SizedBox(height: 6),
-          Text(
-            'Hello, ${name.split(' ').first}',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
+          Positioned(
+            right: -20,
+            bottom: -20,
+            child: Icon(Icons.shield_rounded, size: 100, color: Colors.white.withOpacity(0.08)),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Review analytics, manage verifier access, and monitor report volume.',
-            style: TextStyle(color: Colors.white70, height: 1.5),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: AppTheme.glassDecoration(opacity: 0.15, radius: BorderRadius.circular(12)),
+                child: const Text(
+                  'System Status: Active',
+                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Hello, ${name.split(' ').first}',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Monitor analytics, manage systems, and oversee the entire verification queue.',
+                style: TextStyle(color: Colors.white70, height: 1.4, fontSize: 13),
+              ),
+            ],
           ),
         ],
       ),
@@ -275,6 +346,9 @@ class _AdminDrawer extends StatelessWidget {
   final VoidCallback onAnalytics;
   final VoidCallback onVerifiers;
   final VoidCallback onReports;
+  // ── BROADCAST FEATURE START ──
+  final VoidCallback onBroadcasts;
+  // ── BROADCAST FEATURE END ──
   final VoidCallback onLogout;
 
   const _AdminDrawer({
@@ -283,6 +357,9 @@ class _AdminDrawer extends StatelessWidget {
     required this.onAnalytics,
     required this.onVerifiers,
     required this.onReports,
+    // ── BROADCAST FEATURE START ──
+    required this.onBroadcasts,
+    // ── BROADCAST FEATURE END ──
     required this.onLogout,
   });
 
@@ -295,71 +372,72 @@ class _AdminDrawer extends StatelessWidget {
         .map((part) => part[0].toUpperCase())
         .join();
     return Drawer(
-      width: 300,
+      width: 320,
       backgroundColor: AppTheme.background,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 27,
-                      backgroundColor: Colors.white,
-                      child: Text(
-                        initials.isEmpty ? 'A' : initials,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
+            decoration: const BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 32,
+                  backgroundColor: Colors.white,
+                  child: Text(
+                    initials.isEmpty ? 'A' : initials,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.primary,
+                      fontSize: 20,
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                            ),
-                          ),
-                          if (email.isNotEmpty)
-                            Text(
-                              email,
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              _AdminDrawerItem(label: 'Analytics', icon: Icons.analytics_outlined, onTap: onAnalytics),
-              _AdminDrawerItem(label: 'Verifiers', icon: Icons.verified_user_outlined, onTap: onVerifiers),
-              _AdminDrawerItem(label: 'Reports', icon: Icons.description_outlined, onTap: onReports),
-              const Spacer(),
-              _AdminDrawerItem(
-                label: 'Logout',
-                icon: Icons.logout_rounded,
-                color: AppTheme.error,
-                onTap: onLogout,
-              ),
-            ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: -0.5),
+                      ),
+                      Text(
+                        'System Administrator',
+                        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                _AdminDrawerItem(label: 'Global Analytics', icon: Icons.analytics_outlined, onTap: onAnalytics),
+                _AdminDrawerItem(label: 'Verifier Access', icon: Icons.verified_user_outlined, onTap: onVerifiers),
+                _AdminDrawerItem(label: 'Master Reports', icon: Icons.description_outlined, onTap: onReports),
+                // ── BROADCAST FEATURE START ──
+                _AdminDrawerItem(label: 'Broadcasts Log', icon: Icons.campaign_outlined, onTap: onBroadcasts),
+                // ── BROADCAST FEATURE END ──
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: _AdminDrawerItem(
+              label: 'Sign Out',
+              icon: Icons.logout_rounded,
+              color: AppTheme.error,
+              onTap: onLogout,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -381,29 +459,33 @@ class _AdminDrawerItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveColor = color ?? AppTheme.textPrimary;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        tileColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        leading: Icon(icon, color: effectiveColor),
-        title: Text(
-          label,
-          style: TextStyle(color: effectiveColor, fontWeight: FontWeight.w600),
-        ),
-        onTap: () {
-          Navigator.pop(context);
-          onTap();
-        },
+    return ListTile(
+      leading: Icon(icon, color: effectiveColor.withOpacity(0.7)),
+      title: Text(
+        label,
+        style: TextStyle(color: effectiveColor, fontWeight: FontWeight.w700, fontSize: 15),
       ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      onTap: () {
+        Navigator.pop(context);
+        onTap();
+      },
     );
   }
 }
 
-class _VerifiersTab extends StatelessWidget {
+class _VerifiersTab extends StatefulWidget {
   final FirestoreService fs;
 
   const _VerifiersTab({required this.fs});
+
+  @override
+  State<_VerifiersTab> createState() => _VerifiersTabState();
+}
+
+class _VerifiersTabState extends State<_VerifiersTab> {
+  final List<_LocalVerifierDraft> _localVerifiers = [];
 
   void _showCreateVerifierDialog(BuildContext context) {
     final nameCtrl = TextEditingController();
@@ -416,20 +498,20 @@ class _VerifiersTab extends StatelessWidget {
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Create verifier'),
+          title: const Text('Add New Verifier', style: TextStyle(fontWeight: FontWeight.w800)),
           content: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 AppTextField(
-                  hint: 'Full name',
+                  hint: 'Full Name',
                   controller: nameCtrl,
                   validator: (value) => value == null || value.isEmpty ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
-                  hint: 'Email',
+                  hint: 'College Email',
                   controller: emailCtrl,
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Required';
@@ -443,32 +525,32 @@ class _VerifiersTab extends StatelessWidget {
                   controller: passCtrl,
                   isPassword: true,
                   validator: (value) =>
-                      value != null && value.length >= 6 ? null : 'Minimum 6 characters',
+                      value != null && value.length >= 6 ? null : 'Min 6 characters',
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) return;
-                      setState(() => isLoading = true);
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Verifier creation requires production cloud function wiring'),
-                        backgroundColor: AppTheme.success,
-                      ));
-                    },
-              child: isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Create'),
+            AppButton(
+              text: 'Create',
+              isLoading: isLoading,
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                setState(() => isLoading = true);
+                final verifier = _LocalVerifierDraft(
+                  id: DateTime.now().microsecondsSinceEpoch.toString(),
+                  name: nameCtrl.text.trim(),
+                  email: emailCtrl.text.trim(),
+                  createdAt: DateTime.now(),
+                );
+                Navigator.pop(context);
+                this.setState(() => _localVerifiers.insert(0, verifier));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Verifier card created in frontend preview.'),
+                  backgroundColor: AppTheme.success,
+                ));
+              },
             ),
           ],
         ),
@@ -480,8 +562,8 @@ class _VerifiersTab extends StatelessWidget {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete verifier'),
-        content: Text('Delete ${verifier.name} from verifier access?'),
+        title: const Text('Remove Verifier', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: Text('Are you sure you want to remove ${verifier.name}?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
@@ -490,12 +572,38 @@ class _VerifiersTab extends StatelessWidget {
               await FirestoreService().deleteVerifier(verifier.uid);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Verifier deleted'),
+                  content: Text('Access revoked'),
                   backgroundColor: AppTheme.error,
                 ));
               }
             },
-            child: const Text('Delete', style: TextStyle(color: AppTheme.error)),
+            child: const Text('Remove', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteLocal(BuildContext context, _LocalVerifierDraft verifier) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Remove Verifier', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: Text('Remove the frontend preview for ${verifier.name}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _localVerifiers.removeWhere((item) => item.id == verifier.id);
+              });
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Verifier preview removed.'),
+                backgroundColor: AppTheme.error,
+              ));
+            },
+            child: const Text('Remove', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -510,76 +618,142 @@ class _VerifiersTab extends StatelessWidget {
         onPressed: () => _showCreateVerifierDialog(context),
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
-        label: const Text('Add verifier'),
+        elevation: 6,
+        label: const Text('New Verifier', style: TextStyle(fontWeight: FontWeight.w700)),
         icon: const Icon(Icons.person_add_alt_1_rounded),
       ),
       body: StreamBuilder<List<UserModel>>(
-        stream: fs.getVerifiers(),
+        stream: widget.fs.getVerifiers(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final verifiers = snapshot.data!;
-          if (verifiers.isEmpty) {
+          final hasAnyVerifier = verifiers.isNotEmpty || _localVerifiers.isNotEmpty;
+          if (!hasAnyVerifier) {
             return const _AdminEmptyState(
               icon: Icons.verified_user_outlined,
-              title: 'No verifiers added',
-              subtitle: 'Create verifier access to help staff review and match submissions.',
+              title: 'No verifiers yet',
+              subtitle: 'Add verifiers to help process the lost and found queue.',
             );
           }
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 90),
-            itemCount: verifiers.length,
-            itemBuilder: (context, index) {
-              final verifier = verifiers[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: AppTheme.border),
-                  boxShadow: AppTheme.cardShadow,
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 90),
+            children: [
+              for (final verifier in _localVerifiers)
+                _VerifierListTile(
+                  title: verifier.name,
+                  subtitle: verifier.email,
+                  leadingText: verifier.name.isEmpty ? 'V' : verifier.name[0].toUpperCase(),
+                  accentIcon: Icons.auto_awesome_rounded,
+                  accentColor: const Color(0xFF7C73E6),
+                  onDelete: () => _confirmDeleteLocal(context, verifier),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Center(
-                        child: Text(
-                          verifier.name.isEmpty ? 'V' : verifier.name[0].toUpperCase(),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(verifier.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 4),
-                          Text(verifier.email, style: const TextStyle(color: AppTheme.textSecondary)),
-                        ],
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _confirmDelete(context, verifier),
-                      icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.error),
-                      label: const Text('Remove', style: TextStyle(color: AppTheme.error)),
-                    ),
-                  ],
+              for (final verifier in verifiers)
+                _VerifierListTile(
+                  title: verifier.name,
+                  subtitle: verifier.email,
+                  leadingText: verifier.name.isEmpty ? 'V' : verifier.name[0].toUpperCase(),
+                  onDelete: () => _confirmDelete(context, verifier),
                 ),
-              );
-            },
+            ],
           );
         },
       ),
     );
   }
+}
+
+class _VerifierListTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String leadingText;
+  final VoidCallback onDelete;
+  final IconData? accentIcon;
+  final Color? accentColor;
+
+  const _VerifierListTile({
+    required this.title,
+    required this.subtitle,
+    required this.leadingText,
+    required this.onDelete,
+    this.accentIcon,
+    this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              gradient: accentColor == null
+                  ? AppTheme.primaryGradient
+                  : LinearGradient(
+                      colors: [accentColor!, AppTheme.primary],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Stack(
+              children: [
+                Center(
+                  child: Text(
+                    leadingText,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
+                  ),
+                ),
+                if (accentIcon != null)
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Icon(accentIcon, size: 14, color: Colors.white.withOpacity(0.9)),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.error),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocalVerifierDraft {
+  final String id;
+  final String name;
+  final String email;
+  final DateTime createdAt;
+
+  const _LocalVerifierDraft({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.createdAt,
+  });
 }
 
 class _ReportsTab extends StatefulWidget {
@@ -612,28 +786,29 @@ class _ReportsTabState extends State<_ReportsTab>
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
           child: Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: AppTheme.border),
+              color: const Color(0xFFF1F4FF),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: TabBar(
               controller: _tabController,
               indicatorSize: TabBarIndicatorSize.tab,
               indicator: BoxDecoration(
-                color: AppTheme.primary,
-                borderRadius: BorderRadius.circular(18),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
               ),
               dividerColor: Colors.transparent,
-              labelColor: Colors.white,
+              labelColor: AppTheme.primary,
               unselectedLabelColor: AppTheme.textSecondary,
-              labelPadding: EdgeInsets.zero,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               tabs: const [
-                Tab(text: 'Lost'),
-                Tab(text: 'Found'),
+                Tab(text: 'Lost Items'),
+                Tab(text: 'Found Items'),
               ],
             ),
           ),
@@ -642,62 +817,52 @@ class _ReportsTabState extends State<_ReportsTab>
           child: TabBarView(
             controller: _tabController,
             children: [
-              StreamBuilder(
-                stream: widget.fs.getAllLostItems(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                  final items = snapshot.data!;
-                  if (items.isEmpty) {
-                    return const _AdminEmptyState(
-                      icon: Icons.search_off_rounded,
-                      title: 'No lost reports',
-                      subtitle: 'Lost report records will appear here once submitted.',
-                    );
-                  }
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    itemCount: items.length,
-                    itemBuilder: (context, index) => _AdminReportTile(
-                      title: items[index].itemName,
-                      subtitle: items[index].possibleLocations.take(2).join(', '),
-                      status: items[index].status,
-                      icon: Icons.search_off_rounded,
-                      color: AppTheme.error,
-                      photoURL: items[index].photoURL,
-                    ),
-                  );
-                },
-              ),
-              StreamBuilder(
-                stream: widget.fs.getAllFoundItems(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                  final items = snapshot.data!;
-                  if (items.isEmpty) {
-                    return const _AdminEmptyState(
-                      icon: Icons.inventory_2_rounded,
-                      title: 'No found reports',
-                      subtitle: 'Found report records will appear here once submitted.',
-                    );
-                  }
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    itemCount: items.length,
-                    itemBuilder: (context, index) => _AdminReportTile(
-                      title: items[index].description,
-                      subtitle: items[index].locationFound,
-                      status: items[index].status,
-                      icon: Icons.inventory_2_rounded,
-                      color: AppTheme.success,
-                      photoURL: items[index].photoURL,
-                    ),
-                  );
-                },
-              ),
+              _ReportStreamList(stream: widget.fs.getAllLostItems(), isLost: true),
+              _ReportStreamList(stream: widget.fs.getAllFoundItems(), isLost: false),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ReportStreamList extends StatelessWidget {
+  final Stream<List<dynamic>> stream;
+  final bool isLost;
+
+  const _ReportStreamList({required this.stream, required this.isLost});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder(
+      stream: stream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final items = snapshot.data!;
+        if (items.isEmpty) {
+          return _AdminEmptyState(
+            icon: isLost ? Icons.search_off_rounded : Icons.inventory_2_rounded,
+            title: 'Queue is Clear',
+            subtitle: 'Waiting for new reports to arrive.',
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return _AdminReportTile(
+              title: isLost ? item.itemName : item.description,
+              subtitle: isLost ? item.possibleLocations.take(2).join(', ') : item.locationFound,
+              status: item.status,
+              icon: isLost ? Icons.search_off_rounded : Icons.inventory_2_rounded,
+              color: isLost ? AppTheme.error : AppTheme.success,
+              photoURL: item.photoURL,
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -718,11 +883,10 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppTheme.border),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
@@ -732,15 +896,18 @@ class _MetricCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: color),
+            child: Icon(icon, color: color, size: 22),
           ),
           const Spacer(),
-          Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          Text(title, style: const TextStyle(color: AppTheme.textSecondary)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -1),
+          ),
+          const SizedBox(height: 2),
+          Text(title, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -766,32 +933,31 @@ class _PendingPanel extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppTheme.border),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: AppTheme.cardShadow,
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, color: color),
+            child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(width: 14),
-          Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600))),
+          const SizedBox(width: 16),
+          Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppTheme.textPrimary))),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(999),
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               '$count',
-              style: TextStyle(color: color, fontWeight: FontWeight.w700),
+              style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 15),
             ),
           ),
         ],
@@ -821,11 +987,10 @@ class _AdminReportTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppTheme.border),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: AppTheme.cardShadow,
       ),
       child: Row(
@@ -834,38 +999,49 @@ class _AdminReportTile extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(18),
+              color: AppTheme.background,
+              borderRadius: BorderRadius.circular(16),
             ),
             clipBehavior: Clip.antiAlias,
             child: photoURL != null && photoURL!.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: photoURL!,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => Icon(icon, color: color),
-                  )
-                : Icon(icon, color: color),
+                ? CachedNetworkImage(imageUrl: photoURL!, fit: BoxFit.cover)
+                : Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800, color: AppTheme.textPrimary, fontSize: 15),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: status == 'matched' ? AppTheme.primary.withOpacity(0.1) : color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        status.toUpperCase(),
+                        style: TextStyle(
+                          color: status == 'matched' ? AppTheme.primary : color,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(color: AppTheme.textSecondary)),
+                Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              status[0].toUpperCase() + status.substring(1),
-              style: TextStyle(color: color, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -879,48 +1055,135 @@ class _AdminEmptyState extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _AdminEmptyState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+  const _AdminEmptyState({required this.icon, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: AppTheme.border),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: AppTheme.cardShadow,
+            ),
+            child: Icon(icon, color: AppTheme.textSecondary.withOpacity(0.4), size: 48),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 66,
-                height: 66,
-                decoration: BoxDecoration(
-                  color: AppTheme.canvas,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Icon(icon, color: AppTheme.primary),
-              ),
-              const SizedBox(height: 16),
-              Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppTheme.textSecondary, height: 1.5),
-              ),
-            ],
-          ),
-        ),
+          const SizedBox(height: 24),
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+        ],
       ),
     );
   }
 }
+
+// ── BROADCAST FEATURE START ──
+
+// ─── ADMIN BROADCASTS TAB ────────────────────────────────────────────────────
+
+/// Admin-only full broadcast log showing ALL broadcasts (active + inactive).
+class _AdminBroadcastsTab extends StatelessWidget {
+  final FirestoreService fs;
+
+  const _AdminBroadcastsTab({required this.fs});
+
+  void _confirmDeactivate(BuildContext context, BroadcastModel broadcast) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Deactivate Broadcast'),
+        content: Text('Force-deactivate broadcast for "${broadcast.itemName}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await FirestoreService().deactivateBroadcast(broadcast.broadcastId);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Broadcast deactivated.'),
+                    backgroundColor: AppTheme.success,
+                    behavior: SnackBarBehavior.floating,
+                  ));
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Error: $e'),
+                    backgroundColor: AppTheme.error,
+                    behavior: SnackBarBehavior.floating,
+                  ));
+                }
+              }
+            },
+            child: const Text('Deactivate', style: TextStyle(color: AppTheme.error)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<BroadcastModel>>(
+      stream: fs.getAllBroadcasts(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final broadcasts = snap.data ?? [];
+        if (broadcasts.isEmpty) {
+          return const _AdminEmptyState(
+            icon: Icons.campaign_outlined,
+            title: 'No broadcasts yet',
+            subtitle: 'Verifiers can create broadcasts from their dashboard.',
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          itemCount: broadcasts.length,
+          itemBuilder: (_, i) => _AdminBroadcastLogTile(
+            broadcast: broadcasts[i],
+            onDeactivate: broadcasts[i].isActive
+                ? () => _confirmDeactivate(context, broadcasts[i])
+                : null,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AdminBroadcastLogTile extends StatelessWidget {
+  final BroadcastModel broadcast;
+  final VoidCallback? onDeactivate;
+
+  const _AdminBroadcastLogTile({
+    required this.broadcast,
+    this.onDeactivate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BroadcastCard(
+      broadcast: broadcast,
+      currentUserId: '',
+      compact: true,
+      fullWidth: true,
+      showResponseCount: false,
+      showRespondAction: false,
+      onDeactivate: onDeactivate == null ? null : (_) => onDeactivate!(),
+    );
+  }
+}
+// ── BROADCAST FEATURE END ──

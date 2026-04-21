@@ -64,8 +64,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     await auth.resendVerificationEmail();
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Verification email sent!'),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Text('Verification email sent!'),
       backgroundColor: AppTheme.success,
       behavior: SnackBarBehavior.floating,
     ));

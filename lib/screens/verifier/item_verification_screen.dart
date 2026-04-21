@@ -44,8 +44,8 @@ class _ItemVerificationScreenState extends State<ItemVerificationScreen> {
 
   Future<void> _approveMatch() async {
     if (_selectedLost == null || _selectedFound == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Select one lost item and one found item first'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Select one lost item and one found item first'),
         backgroundColor: AppTheme.error,
       ));
       return;
@@ -61,8 +61,8 @@ class _ItemVerificationScreenState extends State<ItemVerificationScreen> {
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Match approved and owner notified'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Match approved and owner notified'),
         backgroundColor: AppTheme.success,
       ));
       Navigator.pop(context);
@@ -165,7 +165,7 @@ class _ItemVerificationScreenState extends State<ItemVerificationScreen> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: _DetailCard(
                               title: 'Found report',
@@ -205,27 +205,53 @@ class _ItemVerificationScreenState extends State<ItemVerificationScreen> {
                               ),
                             ),
                             const SizedBox(height: 18),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: AppButton(
-                                    text: 'Cancel',
-                                    onPressed: () => Navigator.pop(context),
-                                    isOutlined: true,
-                                    color: AppTheme.error,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: AppButton(
-                                    text: 'Approve match',
-                                    onPressed: _approveMatch,
-                                    isLoading: _isApproving,
-                                    color: AppTheme.success,
-                                    icon: Icons.check_circle_outline_rounded,
-                                  ),
-                                ),
-                              ],
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final stackButtons = constraints.maxWidth < 420;
+                                if (stackButtons) {
+                                  return Column(
+                                    children: [
+                                      AppButton(
+                                        text: 'Approve match',
+                                        onPressed: _approveMatch,
+                                        isLoading: _isApproving,
+                                        color: AppTheme.success,
+                                        icon: Icons.check_circle_outline_rounded,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      AppButton(
+                                        text: 'Cancel',
+                                        onPressed: () => Navigator.pop(context),
+                                        isOutlined: true,
+                                        color: AppTheme.error,
+                                      ),
+                                    ],
+                                  );
+                                }
+
+                                return Row(
+                                  children: [
+                                    Expanded(
+                                      child: AppButton(
+                                        text: 'Cancel',
+                                        onPressed: () => Navigator.pop(context),
+                                        isOutlined: true,
+                                        color: AppTheme.error,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: AppButton(
+                                        text: 'Approve match',
+                                        onPressed: _approveMatch,
+                                        isLoading: _isApproving,
+                                        color: AppTheme.success,
+                                        icon: Icons.check_circle_outline_rounded,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -409,6 +435,8 @@ class _DetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -418,7 +446,7 @@ class _DetailCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          if (imageUrl != null)
+          if (hasImage)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               child: CachedNetworkImage(
@@ -433,7 +461,7 @@ class _DetailCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              borderRadius: imageUrl == null
+              borderRadius: !hasImage
                   ? const BorderRadius.vertical(top: Radius.circular(28))
                   : null,
             ),
@@ -445,24 +473,20 @@ class _DetailCard extends StatelessWidget {
               children: details.entries.map((entry) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(
-                        width: 86,
-                        child: Text(
-                          entry.key,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textSecondary,
-                          ),
+                      Text(
+                        entry.key,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondary,
                         ),
                       ),
-                      Expanded(
-                        child: Text(
-                          entry.value,
-                          style: const TextStyle(color: AppTheme.textPrimary, height: 1.5),
-                        ),
+                      const SizedBox(height: 4),
+                      Text(
+                        entry.value,
+                        style: const TextStyle(color: AppTheme.textPrimary, height: 1.5),
                       ),
                     ],
                   ),

@@ -15,6 +15,10 @@ class AppConstants {
   static const String matchesCollection = 'matches';
   static const String notificationsCollection = 'notifications';
 
+ // ── BROADCAST FEATURE START ──
+  static const String broadcastsCollection = 'broadcasts';
+  // ── BROADCAST FEATURE END ──
+  
   // User roles
   static const String roleUser = 'user';
   static const String roleVerifier = 'verifier';
