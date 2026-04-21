@@ -112,6 +112,8 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final size = MediaQuery.of(context).size;
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final isCompact = size.width < 380 || size.height < 760;
 
     return Scaffold(
       body: Stack(
@@ -148,10 +150,15 @@ class _LoginScreenState extends State<LoginScreen>
 
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: EdgeInsets.fromLTRB(
+                isCompact ? 16 : 24,
+                0,
+                isCompact ? 16 : 24,
+                24 + viewInsets,
+              ),
               child: Column(
                 children: [
-                  const SizedBox(height: 40),
+                  SizedBox(height: isCompact ? 24 : 40),
                   // Logo & Name
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -165,19 +172,22 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         child: const Text('🔍', style: TextStyle(fontSize: 24)),
                       ),
-                      const SizedBox(width: 14),
-                      const Text(
-                        'CampusRetrieve',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.primaryDark,
-                          letterSpacing: -1,
+                      SizedBox(width: isCompact ? 10 : 14),
+                      Flexible(
+                        child: Text(
+                          'CampusRetrieve',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: isCompact ? 22 : 26,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.primaryDark,
+                            letterSpacing: -1,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 48),
+                  SizedBox(height: isCompact ? 28 : 48),
                   
                   // Form Card
                   ClipRRect(
@@ -221,15 +231,15 @@ class _LoginScreenState extends State<LoginScreen>
                                 ],
                               ),
                             ),
-                            
-                            SizedBox(
-                              height: 520, // Height for the content
-                              child: TabBarView(
-                                controller: _tabController,
-                                children: [
-                                  _buildLoginForm(auth),
-                                  _buildSignupForm(auth),
-                                ],
+
+                            AnimatedBuilder(
+                              animation: _tabController,
+                              builder: (context, _) => AnimatedSize(
+                                duration: const Duration(milliseconds: 220),
+                                curve: Curves.easeOutCubic,
+                                child: _tabController.index == 0
+                                    ? _buildLoginForm(auth, isCompact)
+                                    : _buildSignupForm(auth, isCompact),
                               ),
                             ),
                           ],
@@ -237,7 +247,7 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  SizedBox(height: isCompact ? 24 : 40),
                 ],
               ),
             ),
@@ -247,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildLoginForm(AuthProvider auth) {
+  Widget _buildLoginForm(AuthProvider auth, bool isCompact) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 32, 20, 20),
       child: Form(
@@ -264,7 +274,7 @@ class _LoginScreenState extends State<LoginScreen>
               'Sign in to continue tracking your items.',
               style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
-            const SizedBox(height: 32),
+            SizedBox(height: isCompact ? 24 : 32),
             AppTextField(
               hint: 'College Email',
               controller: _loginEmailCtrl,
@@ -291,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
               ),
             ),
-            const Spacer(),
+            SizedBox(height: isCompact ? 24 : 40),
             AppButton(
               text: 'Sign In',
               onPressed: _handleLogin,
@@ -304,7 +314,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildSignupForm(AuthProvider auth) {
+  Widget _buildSignupForm(AuthProvider auth, bool isCompact) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
       child: Form(
@@ -321,7 +331,7 @@ class _LoginScreenState extends State<LoginScreen>
               'Create an account to start reporting.',
               style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: isCompact ? 20 : 24),
             AppTextField(
               hint: 'Full Name',
               controller: _signupNameCtrl,
@@ -356,7 +366,7 @@ class _LoginScreenState extends State<LoginScreen>
               prefixIcon: Icons.verified_user_outlined,
               validator: (v) => (v != _signupPasswordCtrl.text) ? 'Mismatch' : null,
             ),
-            const Spacer(),
+            SizedBox(height: isCompact ? 24 : 36),
             AppButton(
               text: 'Create Account',
               onPressed: _handleSignup,

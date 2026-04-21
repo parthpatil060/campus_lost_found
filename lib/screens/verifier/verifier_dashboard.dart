@@ -938,6 +938,7 @@ class _BroadcastsTabState extends State<_BroadcastsTab> {
                           broadcast: b,
                           currentUserId: widget.verifier?.uid ?? '',
                           compact: true,
+                          showResponseCount: false,
                           onDeactivate: (bc) => _confirmDeactivate(context, bc),
                         ))
                     .toList(),

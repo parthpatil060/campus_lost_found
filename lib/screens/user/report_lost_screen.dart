@@ -328,15 +328,24 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(color: AppTheme.border.withOpacity(0.5)),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: DropdownButtonFormField<String>(
                               value: _selectedCategory,
+                              isExpanded: true,
+                              isDense: true,
                               icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.textSecondary),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w500,
+                              ),
                               decoration: const InputDecoration(
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
-                                prefixIcon: Icon(Icons.category_rounded, size: 22),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                prefixIcon: Icon(Icons.category_rounded, size: 20),
+                                prefixIconConstraints: BoxConstraints(minWidth: 44, minHeight: 44),
                                 hintText: 'Select Category',
                               ),
                               items: _categories
@@ -378,27 +387,33 @@ class _ReportLostScreenState extends State<ReportLostScreen> {
                       subtitle: 'Add campus areas where you may have lost the item.',
                       child: Column(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: AppTextField(
-                                  hint: 'Library, Lab 4, Canteen...',
-                                  controller: _locationCtrl,
-                                  prefixIcon: Icons.my_location_rounded,
-                                  suffix: _voiceSuffix(_locationCtrl, 'location'),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              IconButton.filled(
-                                onPressed: _addLocation,
-                                style: IconButton.styleFrom(
-                                  backgroundColor: AppTheme.primary,
-                                  fixedSize: const Size(54, 54),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                                ),
-                                icon: const Icon(Icons.add_rounded),
-                              ),
-                            ],
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Row(
+                                children: [
+                                  Expanded(
+                                    child: AppTextField(
+                                      hint: 'Library, Lab 4, Canteen...',
+                                      controller: _locationCtrl,
+                                      prefixIcon: Icons.my_location_rounded,
+                                      suffix: _voiceSuffix(_locationCtrl, 'location'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  IconButton.filled(
+                                    onPressed: _addLocation,
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: AppTheme.primary,
+                                      fixedSize: const Size(54, 54),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(18),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.add_rounded),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                           if (_locations.isNotEmpty) ...[
                             const SizedBox(height: 16),

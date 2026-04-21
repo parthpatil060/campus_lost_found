@@ -319,15 +319,24 @@ class _ReportFoundScreenState extends State<ReportFoundScreen> {
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(color: AppTheme.border.withOpacity(0.5)),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: DropdownButtonFormField<String>(
                               value: _selectedCategory,
+                              isExpanded: true,
+                              isDense: true,
                               icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.textSecondary),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w500,
+                              ),
                               decoration: const InputDecoration(
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
-                                prefixIcon: Icon(Icons.category_rounded, size: 22),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                prefixIcon: Icon(Icons.category_rounded, size: 20),
+                                prefixIconConstraints: BoxConstraints(minWidth: 44, minHeight: 44),
                                 hintText: 'Select Category',
                               ),
                               items: _categories

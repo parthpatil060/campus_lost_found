@@ -9,6 +9,7 @@ import '../../services/firestore_service.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/broadcast_card.dart';
 
 // ── BROADCAST FEATURE START ──
 import '../../models/broadcast_model.dart';
@@ -1174,122 +1175,14 @@ class _AdminBroadcastLogTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLost = broadcast.broadcastType == 'lost_broadcast';
-    final typeColor = isLost ? const Color(0xFF1976D2) : const Color(0xFF00796B);
-    final typeLabel = isLost ? 'Lost' : 'Found';
-    final now = DateTime.now();
-    final isExpired = broadcast.expiresAt.isBefore(now);
-    final isEffectivelyActive = broadcast.isActive && !isExpired;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: AppTheme.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: item name + type chip + status badge
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  broadcast.itemName,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: typeColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  typeLabel,
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: typeColor),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isEffectivelyActive
-                      ? AppTheme.success.withOpacity(0.12)
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  isEffectivelyActive ? 'Active' : 'Inactive',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: isEffectivelyActive ? AppTheme.success : AppTheme.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          // Verifier name
-          Text(
-            'By: ${broadcast.createdByName}',
-            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-          ),
-          const SizedBox(height: 4),
-          // Dates row
-          Row(
-            children: [
-              Icon(Icons.calendar_today_outlined, size: 11, color: AppTheme.textSecondary),
-              const SizedBox(width: 4),
-              Text(
-                'Created ${DateFormat('MMM d, yyyy').format(broadcast.createdAt)}',
-                style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-              ),
-              const SizedBox(width: 10),
-              Icon(Icons.timer_off_outlined, size: 11, color: AppTheme.textSecondary),
-              const SizedBox(width: 4),
-              Text(
-                'Expires ${DateFormat('MMM d, yyyy').format(broadcast.expiresAt)}',
-                style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // Response count
-          Row(
-            children: [
-              Icon(Icons.remove_red_eye_outlined, size: 11, color: AppTheme.textSecondary),
-              const SizedBox(width: 4),
-              Text(
-                '${broadcast.readBy.length} response${broadcast.readBy.length == 1 ? '' : 's'}',
-                style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-              ),
-            ],
-          ),
-          // Deactivate button (if still active)
-          if (onDeactivate != null) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onDeactivate,
-                icon: const Icon(Icons.block_outlined, size: 14),
-                label: const Text('Deactivate'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.error,
-                  side: BorderSide(color: AppTheme.error.withOpacity(0.5)),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return BroadcastCard(
+      broadcast: broadcast,
+      currentUserId: '',
+      compact: true,
+      fullWidth: true,
+      showResponseCount: false,
+      showRespondAction: false,
+      onDeactivate: onDeactivate == null ? null : (_) => onDeactivate!(),
     );
   }
 }

@@ -38,6 +38,8 @@ class _AppTextFieldState extends State<AppTextField> {
 
   @override
   Widget build(BuildContext context) {
+    final isMultiline = !widget.isPassword && widget.maxLines > 1;
+
     return TextFormField(
       controller: widget.controller,
       obscureText: widget.isPassword && _obscure,
@@ -46,6 +48,8 @@ class _AppTextFieldState extends State<AppTextField> {
       maxLines: widget.isPassword ? 1 : widget.maxLines,
       enabled: widget.enabled,
       onChanged: widget.onChanged,
+      textAlignVertical:
+          isMultiline ? TextAlignVertical.top : TextAlignVertical.center,
       style: const TextStyle(
         fontSize: 14,
         color: AppTheme.textPrimary,
@@ -54,19 +58,31 @@ class _AppTextFieldState extends State<AppTextField> {
       decoration: InputDecoration(
         hintText: widget.hint,
         labelText: widget.label,
+        alignLabelWithHint: isMultiline,
+        isDense: true,
         prefixIcon: widget.prefixIcon != null
             ? Icon(widget.prefixIcon, color: AppTheme.textSecondary, size: 20)
             : null,
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 44,
+          minHeight: 44,
+        ),
         suffixIcon: widget.isPassword
             ? IconButton(
-          icon: Icon(
-            _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: AppTheme.textSecondary,
-            size: 20,
-          ),
-          onPressed: () => setState(() => _obscure = !_obscure),
-        )
+                icon: Icon(
+                  _obscure
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: AppTheme.textSecondary,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              )
             : widget.suffix,
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 44,
+          minHeight: 44,
+        ),
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
@@ -85,7 +101,12 @@ class _AppTextFieldState extends State<AppTextField> {
           borderRadius: BorderRadius.circular(AppTheme.inputRadius),
           borderSide: const BorderSide(color: AppTheme.error),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: EdgeInsets.fromLTRB(
+          16,
+          isMultiline ? 16 : 14,
+          16,
+          isMultiline ? 16 : 14,
+        ),
       ),
     );
   }
